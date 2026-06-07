@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useSearchParams } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 import { useAsync } from "../lib/useAsync"
 import type { Set } from "../lib/types"
@@ -39,10 +39,24 @@ function classify(set: Set): Tab {
   return "main"
 }
 
+const TAB_IDS = new Set<string>(TABS.map(t => t.id))
+
 export default function SetsPage() {
   const { data: sets, loading, error } = useAsync(loadSets, [])
   const [query, setQuery] = useState("")
-  const [tab, setTab] = useState<Tab>("main")
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const tabParam = searchParams.get("tab")
+  const tab: Tab = tabParam && TAB_IDS.has(tabParam) ? (tabParam as Tab) : "main"
+  const setTab = (id: Tab) =>
+    setSearchParams(
+      prev => {
+        if (id === "main") prev.delete("tab")
+        else prev.set("tab", id)
+        return prev
+      },
+      { replace: false },
+    )
 
   const filtered = useMemo(() => {
     if (!sets) return []
