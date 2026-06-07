@@ -32,7 +32,7 @@ async function loadCard(id: string): Promise<CardData> {
     .from("printings")
     .select("id,collector_number,rarity,released_at,image_uris,prices,sets(code,name,icon_svg_uri)")
     .eq("card_id", full.card_id)
-    .order("released_at", { ascending: false, nullsFirst: false })
+    .order("released_at", { ascending: true, nullsFirst: false })
   if (vErr) throw vErr
 
   return { printing: full, versions: (versions ?? []) as unknown as Version[] }
