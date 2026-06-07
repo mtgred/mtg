@@ -10,7 +10,7 @@ The script depends only on the Python standard library.
 Usage:
     python supabase/generate_seed.py
     python supabase/generate_seed.py --limit 500 --output supabase/seed.sql
-    python supabase/generate_seed.py --include-digital --include-tokens
+    python supabase/generate_seed.py --include-digital --exclude-tokens
 
 Scryfall asks API consumers to send a descriptive User-Agent and to throttle
 requests; both are handled here. See https://scryfall.com/docs/api for the
@@ -90,8 +90,8 @@ def fetch_bulk_cards(bulk_type: str):
 def is_real_card(card: dict, include_digital: bool, include_tokens: bool) -> bool:
     """Filter out printings we don't want to seed.
 
-    By default skips digital-only cards (Alchemy/MTGO/Arena rebalances) and
-    token/emblem layouts, which keeps the dataset to "real" paper cards.
+    By default skips digital-only cards (Alchemy/MTGO/Arena rebalances) but
+    keeps token/emblem layouts, so token sets are seeded with their cards.
     """
     if not include_digital and card.get("digital"):
         return False
@@ -463,9 +463,11 @@ def parse_args(argv=None):
         help="Include digital-only printings (Alchemy/MTGO/Arena).",
     )
     parser.add_argument(
-        "--include-tokens",
-        action="store_true",
-        help="Include token, emblem and art-series printings.",
+        "--exclude-tokens",
+        dest="include_tokens",
+        action="store_false",
+        help="Exclude token, emblem and art-series printings (included by "
+        "default).",
     )
     return parser.parse_args(argv)
 
