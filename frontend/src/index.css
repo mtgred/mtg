@@ -113,10 +113,6 @@
     @apply no-underline text-garnet;
   }
 }
-.brand-mark {
-  @apply text-gold-bright text-[1.1rem] -translate-y-px;
-}
-
 .cardsearch {
   @apply relative ml-6 w-[min(360px,42vw)];
 }

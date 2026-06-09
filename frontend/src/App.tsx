@@ -6,7 +6,7 @@ const App = () => {
     <div className="app">
       <nav className="topbar">
         <Link to="/" className="brand">
-          <span className="brand-mark">✦</span> Manaring
+          <img className="w-6 h-6" src="/fireball.svg" /> Manaring
         </Link>
         <CardSearch />
       </nav>
