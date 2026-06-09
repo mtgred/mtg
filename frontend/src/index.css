@@ -156,6 +156,16 @@
     @apply outline-none border-gold shadow-[0_0_0_3px_rgba(176,138,46,0.16)];
   }
 }
+.cardsearch-input {
+  @apply pr-14;
+}
+.cardsearch-hint {
+  @apply absolute top-1/2 right-2 -translate-y-1/2 pointer-events-none flex items-center h-5 min-w-5 px-1.5 justify-center bg-paper-sunken border border-border rounded text-text-dim text-xs font-sans leading-none shadow-sm;
+}
+.cardsearch-input:focus ~ .cardsearch-hint,
+.cardsearch-input:not(:placeholder-shown) ~ .cardsearch-hint {
+  @apply hidden;
+}
 .cardsearch-menu {
   @apply absolute top-[calc(100%+0.4rem)] inset-x-0 z-20 list-none m-0 p-[0.3rem] max-h-[min(70vh,420px)] overflow-y-auto bg-paper-raised border border-border rounded-card shadow-lift;
   animation: var(--animate-rise-fast);
@@ -202,9 +212,19 @@ main {
   h1 {
     @apply mb-0;
   }
-  .search {
-    @apply ml-auto w-70;
+  .search-field {
+    @apply relative ml-auto w-70;
   }
+}
+.search {
+  @apply pr-7;
+}
+.search-hint {
+  @apply absolute top-1/2 right-2 -translate-y-1/2 pointer-events-none flex items-center h-5 min-w-5 px-1.5 justify-center bg-paper-sunken border border-border rounded text-text-dim text-xs font-sans leading-none shadow-sm;
+}
+.search:focus ~ .search-hint,
+.search:not(:placeholder-shown) ~ .search-hint {
+  @apply hidden;
 }
 .page-head-count {
   @apply text-[0.95rem] font-medium text-text-faint;

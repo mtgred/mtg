@@ -6,6 +6,8 @@ import { Symbols } from "./Symbols"
 
 type Hit = Pick<Card, "id" | "name" | "mana_cost">
 
+const isMac = typeof navigator !== "undefined" && /Mac|iP(hone|ad|od)/.test(navigator.platform)
+
 // Escape ilike wildcards so a literal % or _ typed by the user is matched as-is.
 function escapeLike(value: string): string {
   return value.replace(/[\\%_]/g, "\\$&")
@@ -56,6 +58,7 @@ export default function CardSearch() {
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
   const rootRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   // Debounced fuzzy lookup. Pulls a popularity-ordered pool of name matches and
   // re-ranks client-side; guards against out-of-order responses like useAsync.
@@ -99,6 +102,24 @@ export default function CardSearch() {
     return () => document.removeEventListener("mousedown", onClick)
   }, [])
 
+  // Global shortcut to focus the search: Cmd/Ctrl+K, unless the user is already
+  // typing in a field. ("/" is reserved for the per-page filter inputs.)
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const cmdK = e.key.toLowerCase() === "k" && (e.metaKey || e.ctrlKey)
+      if (!cmdK) return
+      const el = document.activeElement
+      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || (el as HTMLElement)?.isContentEditable) {
+        return
+      }
+      e.preventDefault()
+      inputRef.current?.focus()
+      inputRef.current?.select()
+    }
+    document.addEventListener("keydown", onKey)
+    return () => document.removeEventListener("keydown", onKey)
+  }, [])
+
   // Routes navigate by printing id, so resolve the oldest printing of the chosen
   // oracle card before going to its page.
   async function go(hit: Hit) {
@@ -131,6 +152,7 @@ export default function CardSearch() {
       }
     } else if (e.key === "Escape") {
       setOpen(false)
+      inputRef.current?.blur()
     }
   }
 
@@ -139,6 +161,7 @@ export default function CardSearch() {
   return (
     <div className="cardsearch" ref={rootRef}>
       <input
+        ref={inputRef}
         className="cardsearch-input"
         type="search"
         placeholder="Search cards…"
@@ -154,6 +177,9 @@ export default function CardSearch() {
         aria-controls="cardsearch-list"
         autoComplete="off"
       />
+      <kbd className="cardsearch-hint" aria-hidden="true">
+        {isMac ? "⌘" : "Ctrl"} K
+      </kbd>
 
       {showMenu && (
         <ul className="cardsearch-menu" id="cardsearch-list" role="listbox">

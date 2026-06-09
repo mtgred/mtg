@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase"
 import { useAsync } from "../lib/useAsync"
 import type { Set } from "../lib/types"
 import { formatDate } from "../lib/format"
+import FilterInput from "../components/FilterInput"
 
 async function loadSets(): Promise<Set[]> {
   const { data, error } = await supabase
@@ -80,12 +81,10 @@ export default function SetsPage() {
         <h1>
           Sets <span className="page-head-count">{sets ? sets.length.toLocaleString() : ""}</span>
         </h1>
-        <input
-          className="search"
-          type="search"
+        <FilterInput
           placeholder="Filter sets by name or code…"
           value={query}
-          onChange={e => setQuery(e.target.value)}
+          onChange={setQuery}
         />
       </header>
 

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 import { useAsync } from "../lib/useAsync"
 import type { Artist } from "../lib/types"
+import FilterInput from "../components/FilterInput"
 
 // Escape ilike wildcards so a literal % or _ typed by the user is matched as-is.
 function escapeLike(value: string): string {
@@ -33,12 +34,10 @@ export default function ArtistsPage() {
     <div className="page">
       <header className="page-head">
         <h1>Artists</h1>
-        <input
-          className="search"
-          type="search"
+        <FilterInput
           placeholder="Search artists by name…"
           value={query}
-          onChange={e => setQuery(e.target.value)}
+          onChange={setQuery}
         />
       </header>
 
