@@ -519,7 +519,7 @@ main {
 
 /* ---- symbols ---- */
 .symbol {
-  @apply w-4 h-4 align-text-bottom mx-px;
+  @apply inline-block w-4 h-4 mx-px;
 }
 
 @media (max-width: 720px) {
