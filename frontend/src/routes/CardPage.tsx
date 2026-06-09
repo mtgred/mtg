@@ -113,7 +113,10 @@ export default function CardPage() {
               </div>
             </Fact>
             <Fact label="Number">#{p.collector_number}</Fact>
-            {p.artist && <Fact label="Artist">{p.artist}</Fact>}
+            {p.artist && (
+              <Fact label="Artist">
+                <Link to={`/artists/${encodeURIComponent(p.artist)}`}>{p.artist}</Link>
+              </Fact>)}
             {card?.cmc != null && <Fact label="Mana value">{card.cmc}</Fact>}
             {p.finishes?.length ? <Fact label="Finishes">{p.finishes.map(titleCase).join(", ")}</Fact> : null}
             {p.released_at && <Fact label="Released">{formatDate(p.released_at)}</Fact>}

@@ -65,6 +65,7 @@ schema_paths = [
   "./schemas/cards.sql",
   "./schemas/sets.sql",
   "./schemas/printings.sql",
+  "./schemas/artists.sql",
 ]
 
 [db.seed]

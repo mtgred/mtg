@@ -34,6 +34,13 @@ export type Card = {
   edhrec_rank: number | null
 }
 
+// One row per artist credit, from the `artists` view (supabase/schemas/artists.sql).
+export type Artist = {
+  name: string
+  card_count: number
+  printing_count: number
+}
+
 export type ImageUris = {
   small?: string
   normal?: string
@@ -58,6 +65,7 @@ export type Printing = {
   set_id: number
   rarity: string
   artist: string | null
+  illustration_id: string | null
   collector_number: string | null
   lang: string
   released_at: string | null

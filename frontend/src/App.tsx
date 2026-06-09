@@ -1,5 +1,6 @@
 import { Link, Outlet } from "react-router-dom"
 import CardSearch from "./components/CardSearch"
+import CardsMenu from "./components/CardsMenu"
 
 const App = () => {
   return (
@@ -9,6 +10,7 @@ const App = () => {
           <img className="w-6 h-6" src="/fireball.svg" /> Manaring
         </Link>
         <CardSearch />
+        <CardsMenu />
       </nav>
       <main>
         <Outlet />
