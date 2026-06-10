@@ -8,6 +8,9 @@ import SetPage from "./routes/SetPage.tsx"
 import CardPage from "./routes/CardPage.tsx"
 import ArtistsPage from "./routes/ArtistsPage.tsx"
 import ArtistPage from "./routes/ArtistPage.tsx"
+import SignInPage from "./routes/SignInPage.tsx"
+import SignUpPage from "./routes/SignUpPage.tsx"
+import { AuthProvider } from "./lib/AuthProvider.tsx"
 
 const router = createBrowserRouter([
   {
@@ -20,12 +23,16 @@ const router = createBrowserRouter([
       { path: "cards/:id", element: <CardPage /> },
       { path: "artists", element: <ArtistsPage /> },
       { path: "artists/:name", element: <ArtistPage /> },
+      { path: "signin", element: <SignInPage /> },
+      { path: "signup", element: <SignUpPage /> },
     ],
   },
 ])
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
   </StrictMode>
 )

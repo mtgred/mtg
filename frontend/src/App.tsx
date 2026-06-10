@@ -1,6 +1,7 @@
 import { Link, Outlet } from "react-router-dom"
 import CardSearch from "./components/CardSearch"
 import CardsMenu from "./components/CardsMenu"
+import AccountMenu from "./components/AccountMenu"
 
 const App = () => {
   return (
@@ -11,6 +12,7 @@ const App = () => {
         </Link>
         <CardSearch />
         <CardsMenu />
+        <AccountMenu />
       </nav>
       <main>
         <Outlet />

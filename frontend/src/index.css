@@ -144,6 +144,58 @@
   }
 }
 
+/* ---- account ---- */
+.account {
+  @apply flex items-center gap-1 ml-auto;
+}
+.account-cta {
+  @apply text-garnet;
+  &:hover {
+    @apply text-garnet-bright bg-paper-sunken;
+  }
+}
+.account-avatar {
+  @apply inline-flex items-center justify-center w-6 h-6 rounded-full bg-garnet text-paper-raised text-xs font-bold;
+}
+.account-menu {
+  @apply min-w-52 right-0 left-auto;
+}
+.account-email {
+  @apply m-0 py-[0.4rem] px-[0.6rem] text-[0.8rem] text-text-dim truncate border-b border-border-soft mb-[0.3rem];
+}
+.account-signout {
+  @apply text-left cursor-pointer appearance-none bg-none border-none w-full;
+}
+
+/* ---- auth pages ---- */
+.auth-page {
+  @apply flex justify-center items-center min-h-[calc(100vh-60px)];
+}
+.auth-card {
+  @apply flex flex-col gap-4 w-full max-w-90 p-[clamp(1.25rem,4vw,2rem)] bg-paper-raised border border-border rounded-card shadow-card;
+}
+.auth-title {
+  @apply m-0 text-ink;
+}
+.auth-field {
+  @apply flex flex-col gap-1.5 text-[0.85rem] font-semibold text-text-dim;
+}
+.auth-notice {
+  @apply m-0 text-[0.9rem] text-gold;
+}
+.auth-submit {
+  @apply py-2 px-3 rounded-lg bg-garnet text-paper-raised font-semibold cursor-pointer border-none transition-colors duration-150;
+  &:hover {
+    @apply bg-garnet-bright;
+  }
+  &:disabled {
+    @apply opacity-60 cursor-not-allowed;
+  }
+}
+.auth-alt {
+  @apply m-0 text-[0.88rem] text-text-dim text-center;
+}
+
 .cardsearch {
   @apply relative ml-4 w-[min(360px,42vw)];
 }
