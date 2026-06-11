@@ -251,6 +251,10 @@ main {
   @apply max-w-300 mx-auto p-[clamp(0.85rem,4vw,1rem)] animate-rise;
 }
 
+.not-found {
+  @apply flex flex-col items-start gap-3 py-[clamp(2rem,8vh,5rem)];
+}
+
 .crumbs {
   @apply mx-0 mt-0 mb-6 text-text-dim text-[0.85rem] tracking-[0.01em];
   .sep {

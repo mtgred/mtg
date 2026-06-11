@@ -10,6 +10,7 @@ import ArtistsPage from "./routes/ArtistsPage.tsx"
 import ArtistPage from "./routes/ArtistPage.tsx"
 import SignInPage from "./routes/SignInPage.tsx"
 import SignUpPage from "./routes/SignUpPage.tsx"
+import NotFoundPage from "./routes/NotFoundPage.tsx"
 import { AuthProvider } from "./lib/AuthProvider.tsx"
 
 const router = createBrowserRouter([
@@ -25,6 +26,7 @@ const router = createBrowserRouter([
       { path: "artists/:name", element: <ArtistPage /> },
       { path: "signin", element: <SignInPage /> },
       { path: "signup", element: <SignUpPage /> },
+      { path: "*", element: <NotFoundPage /> },
     ],
   },
 ])
