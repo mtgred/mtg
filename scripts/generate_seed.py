@@ -90,10 +90,16 @@ def fetch_bulk_cards(bulk_type: str):
 def is_real_card(card: dict, include_digital: bool, include_tokens: bool) -> bool:
     """Filter out printings we don't want to seed.
 
-    By default skips digital-only cards (Alchemy/MTGO/Arena rebalances) but
-    keeps token/emblem layouts, so token sets are seeded with their cards.
+    By default skips Arena-only digital cards (Alchemy rebalances and
+    Arena-exclusive cards) but keeps token/emblem layouts, so token sets are
+    seeded with their cards.
+
+    Digital cards that also exist on Magic Online are kept: legitimate MTGO-only
+    sets (Vintage Masters, Masters Edition I-IV, Tempest Remastered, ...) are
+    flagged ``digital`` by Scryfall but carry ``"mtgo"`` in ``games``, unlike the
+    Arena rebalances we want to drop (``games == ["arena"]``).
     """
-    if not include_digital and card.get("digital"):
+    if not include_digital and card.get("digital") and "mtgo" not in (card.get("games") or []):
         return False
     if not include_tokens:
         layout = card.get("layout", "")
