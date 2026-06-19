@@ -59,6 +59,40 @@ export type Prices = {
   tix?: string | null
 }
 
+// A constructed format a deck can target (supabase/schemas/formats.sql).
+export type Format = {
+  code: string
+  name: string
+  sort_order: number | null
+  description: string | null
+  banned_cards: string[] | null
+  restricted_cards: string[] | null
+}
+
+// A user-created deck list (supabase/schemas/decks.sql).
+export type Deck = {
+  id: string
+  user_id: string
+  name: string
+  format: string | null
+  description: string | null
+  is_public: boolean
+  created_at: string
+  updated_at: string
+}
+
+export type DeckBoard = "main" | "side" | "commander" | "maybe"
+
+// A card entry within a deck (supabase/schemas/decks.sql).
+export type DeckCard = {
+  id: number
+  deck_id: string
+  card_id: number
+  printing_id: string | null
+  quantity: number
+  board: DeckBoard
+}
+
 export type Printing = {
   id: string
   card_id: number
