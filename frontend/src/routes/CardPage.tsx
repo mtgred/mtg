@@ -2,7 +2,7 @@ import type { ReactNode } from "react"
 import { Link, useParams } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 import { useAsync } from "../lib/useAsync"
-import type { Card, Printing, Set } from "../lib/types"
+import type { Card, Format, Printing, Set } from "../lib/types"
 import { OracleText, Symbols } from "../components/Symbols"
 import { formatDate, formatPrice, listPrices, titleCase } from "../lib/format"
 
@@ -15,6 +15,7 @@ type Version = Pick<Printing, "id" | "collector_number" | "rarity" | "released_a
 type CardData = {
   printing: FullPrinting
   versions: Version[]
+  formats: Format[]
 }
 
 async function loadCard(id: string): Promise<CardData> {
@@ -28,17 +29,28 @@ async function loadCard(id: string): Promise<CardData> {
 
   const full = printing as unknown as FullPrinting
 
-  const { data: versions, error: vErr } = await supabase
-    .from("printings")
-    .select("id,collector_number,rarity,released_at,image_uris,prices,sets(code,name,icon_svg_uri)")
-    .eq("card_id", full.card_id)
-    .order("released_at", { ascending: true, nullsFirst: false })
-  if (vErr) throw vErr
+  // Versions for the printings list, plus the curated format list (ordered by
+  // popularity via sort_order) used to render legality badges.
+  const [versionsRes, formatsRes] = await Promise.all([
+    supabase
+      .from("printings")
+      .select("id,collector_number,rarity,released_at,image_uris,prices,sets(code,name,icon_svg_uri)")
+      .eq("card_id", full.card_id)
+      .order("released_at", { ascending: true, nullsFirst: false }),
+    supabase
+      .from("formats")
+      .select("code,name,sort_order,description,banned_cards,restricted_cards")
+      .order("sort_order", { ascending: true, nullsFirst: false }),
+  ])
+  if (versionsRes.error) throw versionsRes.error
+  if (formatsRes.error) throw formatsRes.error
 
-  return { printing: full, versions: (versions ?? []) as unknown as Version[] }
+  return {
+    printing: full,
+    versions: (versionsRes.data ?? []) as unknown as Version[],
+    formats: (formatsRes.data ?? []) as Format[],
+  }
 }
-
-const FORMATS = ["standard", "pioneer", "modern", "legacy", "vintage", "commander", "pauper", "brawl"]
 
 export default function CardPage() {
   const { id = "" } = useParams()
@@ -124,15 +136,15 @@ export default function CardPage() {
             {card?.reserved && <Fact label="Reserved list">Yes</Fact>}
           </dl>
 
-          {card?.legalities && (
+          {card && (
             <div className="legalities">
-              {FORMATS.map(fmt => {
-                const status = card.legalities?.[fmt]
+              {data.formats.map(fmt => {
+                const status = legalityFor(card, fmt)
                 if (!status) return null
                 return (
-                  <span key={fmt} className={`legality legality-${status}`}>
-                    {titleCase(fmt)}
-                  </span>
+                  <Link key={fmt.code} to={`/formats/${fmt.code}`} className={`legality legality-${status}`}>
+                    {fmt.name}
+                  </Link>
                 )
               })}
             </div>
@@ -187,6 +199,15 @@ export default function CardPage() {
       )}
     </div>
   )
+}
+
+// A card's legality status in a format. Curated banned/restricted overrides on
+// the format win over Scryfall's `legalities`, which is unreliable for community
+// formats (e.g. Old School) — keep this in sync with FormatPage's loader.
+function legalityFor(card: Card, format: Format): string | undefined {
+  if (format.restricted_cards?.includes(card.name)) return "restricted"
+  if (format.banned_cards?.includes(card.name)) return "banned"
+  return card.legalities?.[format.code]
 }
 
 function Fact({ label, children }: { label: string; children: ReactNode }) {

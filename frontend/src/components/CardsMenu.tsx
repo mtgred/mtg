@@ -16,7 +16,10 @@ export default function CardsMenu() {
     return () => document.removeEventListener("mousedown", onClick)
   }, [])
 
-  const active = location.pathname.startsWith("/sets") || location.pathname.startsWith("/artists")
+  const active =
+    location.pathname.startsWith("/sets") ||
+    location.pathname.startsWith("/artists") ||
+    location.pathname.startsWith("/formats")
 
   return (
     <div className="cardsmenu" ref={rootRef}>
@@ -40,6 +43,9 @@ export default function CardsMenu() {
           </NavLink>
           <NavLink to="/artists" role="menuitem" onClick={() => setOpen(false)} className={({ isActive }) => `cardsmenu-item${isActive ? " is-active" : ""}`}>
             Artists
+          </NavLink>
+          <NavLink to="/formats" role="menuitem" onClick={() => setOpen(false)} className={({ isActive }) => `cardsmenu-item${isActive ? " is-active" : ""}`}>
+            Formats
           </NavLink>
         </div>
       )}

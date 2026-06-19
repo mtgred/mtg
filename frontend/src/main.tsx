@@ -8,6 +8,8 @@ import SetPage from "./routes/SetPage.tsx"
 import CardPage from "./routes/CardPage.tsx"
 import ArtistsPage from "./routes/ArtistsPage.tsx"
 import ArtistPage from "./routes/ArtistPage.tsx"
+import FormatsPage from "./routes/FormatsPage.tsx"
+import FormatPage from "./routes/FormatPage.tsx"
 import SignInPage from "./routes/SignInPage.tsx"
 import SignUpPage from "./routes/SignUpPage.tsx"
 import NotFoundPage from "./routes/NotFoundPage.tsx"
@@ -24,6 +26,8 @@ const router = createBrowserRouter([
       { path: "cards/:id", element: <CardPage /> },
       { path: "artists", element: <ArtistsPage /> },
       { path: "artists/:name", element: <ArtistPage /> },
+      { path: "formats", element: <FormatsPage /> },
+      { path: "formats/:code", element: <FormatPage /> },
       { path: "signin", element: <SignInPage /> },
       { path: "signup", element: <SignUpPage /> },
       { path: "*", element: <NotFoundPage /> },
