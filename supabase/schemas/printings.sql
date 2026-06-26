@@ -28,3 +28,19 @@ CREATE TABLE printings (
   image_uris JSONB,                           -- size -> URL map
   prices JSONB                                -- usd/usd_foil/eur/tix/...
 );
+
+-- One representative printing per oracle card: the earliest-released printing
+-- (then lowest collector number), excluding token sets so a card like Sacred Cat
+-- (which also has an embalm-token printing under the same oracle id) links to the
+-- actual card and never to a token. Lets oracle-level references (e.g. decklists)
+-- fetch art + a linkable printing id with a single row per card, instead of
+-- pulling every printing and hitting the API row cap. Read-only.
+CREATE VIEW card_default_printings AS
+SELECT DISTINCT ON (p.card_id)
+  p.card_id,
+  p.id,
+  p.image_uris
+FROM printings p
+JOIN sets s ON s.id = p.set_id
+WHERE s.set_type <> 'token'
+ORDER BY p.card_id, p.released_at ASC NULLS LAST, p.collector_number ASC;
