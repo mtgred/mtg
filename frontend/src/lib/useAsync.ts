@@ -37,5 +37,9 @@ export function useAsync<T>(loader: () => Promise<T>, deps: unknown[]): AsyncSta
 function messageOf(err: unknown): string {
   if (err instanceof Error) return err.message
   if (typeof err === "string") return err
+  // Supabase/PostgREST errors are plain objects with a `message`, not Error instances.
+  if (err && typeof err === "object" && typeof (err as { message?: unknown }).message === "string") {
+    return (err as { message: string }).message
+  }
   return "Something went wrong."
 }
