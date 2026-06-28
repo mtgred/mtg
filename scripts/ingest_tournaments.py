@@ -25,6 +25,12 @@ and skipped rather than aborting the run.
 supabase/seeds/tournaments.sql so the committed fixture that ``supabase db
 reset`` loads stays in sync with what you ingested locally.
 
+Every network fetch is also cached to disk (scripts/_tournament_cache/<source>.json,
+gitignored), merged by ``(source, external_id)`` so the cache accumulates into a
+local archive. ``--from-cache`` re-ingests from those files instead of hitting the
+network — the fast way to repopulate after a ``supabase db reset`` without
+re-downloading every event. ``--no-cache`` skips writing the cache.
+
 Stdlib only; DB access is delegated to the ``psql`` CLI (already required by the
 Supabase workflow), so there is no driver dependency. Card names are resolved by
 joining against ``cards`` in SQL — names with no matching row are skipped, same
@@ -34,18 +40,21 @@ as the existing curated seed.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import subprocess
 import sys
 from collections import Counter
-from datetime import date, datetime
+from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from tournament_sources import SOURCES, Tournament  # noqa: E402
+from tournament_sources import SOURCES, Deck, DeckCard, Tournament  # noqa: E402
 
 LOCAL_DB_URL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
 SEED_PATH = Path(__file__).resolve().parent.parent / "supabase" / "seeds" / "tournaments.sql"
+CACHE_DIR = Path(__file__).resolve().parent / "_tournament_cache"  # gitignored (_*), one JSON per source
 
 
 def lit(value) -> str:
@@ -108,6 +117,32 @@ class Resolver:
             if split in self.exact:
                 return split
         return self.front.get(name)
+
+
+def tournament_from_dict(d: dict) -> Tournament:
+    decks = [Deck(cards=[DeckCard(**c) for c in dk.pop("cards", [])], **dk) for dk in d.pop("decks", [])]
+    return Tournament(decks=decks, **d)
+
+
+def load_cache(source: str, cache_dir: Path, since=None) -> list[Tournament]:
+    path = cache_dir / f"{source}.json"
+    if not path.exists():
+        return []
+    cutoff = since.isoformat() if since else None
+    return [
+        t for t in (tournament_from_dict(d) for d in json.loads(path.read_text(encoding="utf-8")))
+        if not (cutoff and t.held_on and t.held_on < cutoff)
+    ]
+
+
+def write_cache(source: str, tournaments: list[Tournament], cache_dir: Path) -> None:
+    """Merge ``tournaments`` into the source's cache file, keyed by external_id."""
+    merged = {t.external_id: t for t in load_cache(source, cache_dir)}
+    merged.update((t.external_id, t) for t in tournaments)
+    ordered = sorted(merged.values(), key=lambda t: (t.held_on or "", t.external_id))
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    (cache_dir / f"{source}.json").write_text(json.dumps([asdict(t) for t in ordered]), encoding="utf-8")
+    print(f"  cached {len(ordered)} events in {cache_dir / f'{source}.json'}", file=sys.stderr)
 
 
 def tournament_sql(t: Tournament, resolver: Resolver, unresolved: Counter) -> str:
@@ -209,6 +244,9 @@ def parse_args(argv=None):
     p.add_argument("--since", type=lambda s: datetime.strptime(s, "%Y-%m-%d").date(), help="only events on/after YYYY-MM-DD")
     p.add_argument("--db-url", default=os.environ.get("DATABASE_URL", LOCAL_DB_URL), help="target DB (default: $DATABASE_URL or local)")
     p.add_argument("--snapshot", action="store_true", help="also write supabase/seeds/tournaments.sql")
+    p.add_argument("--from-cache", action="store_true", help="re-ingest from scripts/_tournament_cache instead of the network")
+    p.add_argument("--no-cache", action="store_true", help="do not write fetched data to the cache")
+    p.add_argument("--cache-dir", type=Path, default=CACHE_DIR, help=f"cache location (default: {CACHE_DIR})")
     p.add_argument("--dry-run", action="store_true", help="print SQL instead of applying it")
     return p.parse_args(argv)
 
@@ -223,10 +261,15 @@ def main(argv=None):
     applied = failed = 0
 
     for n in names:
-        print(f"Fetching from {n}...", file=sys.stderr)
-        got = 0
-        for t in SOURCES[n].fetch(args.since):
-            got += 1
+        if args.from_cache:
+            print(f"Loading {n} from cache...", file=sys.stderr)
+            stream = load_cache(n, args.cache_dir, args.since)
+        else:
+            print(f"Fetching from {n}...", file=sys.stderr)
+            stream = SOURCES[n].fetch(args.since)
+        fetched: list[Tournament] = []
+        for t in stream:
+            fetched.append(t)
             sql = tournament_sql(t, resolver, unresolved)
             parts.append(sql)
             if args.dry_run:
@@ -239,7 +282,9 @@ def main(argv=None):
             except subprocess.CalledProcessError as exc:
                 failed += 1
                 print(f"  ! failed to apply {t.source} {t.external_id}: {exc}", file=sys.stderr)
-        print(f"  {got} events", file=sys.stderr)
+        print(f"  {len(fetched)} events", file=sys.stderr)
+        if fetched and not args.from_cache and not args.no_cache:
+            write_cache(n, fetched, args.cache_dir)
 
     report_unresolved(unresolved)
 
