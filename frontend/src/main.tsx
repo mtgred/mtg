@@ -12,7 +12,10 @@ import FormatsPage from "./routes/FormatsPage.tsx"
 import FormatPage from "./routes/FormatPage.tsx"
 import SignInPage from "./routes/SignInPage.tsx"
 import SignUpPage from "./routes/SignUpPage.tsx"
+import DecksPage from "./routes/DecksPage.tsx"
+import DeckPage from "./routes/DeckPage.tsx"
 import NotFoundPage from "./routes/NotFoundPage.tsx"
+import RequireAuth from "./components/RequireAuth.tsx"
 import { AuthProvider } from "./lib/AuthProvider.tsx"
 
 const router = createBrowserRouter([
@@ -30,6 +33,15 @@ const router = createBrowserRouter([
       { path: "formats/:code", element: <FormatPage /> },
       { path: "signin", element: <SignInPage /> },
       { path: "signup", element: <SignUpPage /> },
+      {
+        path: "decks",
+        element: (
+          <RequireAuth>
+            <DecksPage />
+          </RequireAuth>
+        ),
+      },
+      { path: "decks/:id", element: <DeckPage /> },
       { path: "*", element: <NotFoundPage /> },
     ],
   },
