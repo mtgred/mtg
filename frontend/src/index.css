@@ -88,10 +88,10 @@
     font-optical-sizing: auto;
   }
   h1 {
-    @apply m-0 font-semibold leading-[1.05] tracking-[-0.015em] text-[clamp(1.5rem,1.5rem+1.8vw,2.4rem)];
+    @apply m-0 font-semibold leading-none tracking-tight text-[clamp(1.5rem,1.5rem+1.8vw,2.4rem)];
   }
   h2 {
-    @apply mx-0 mt-0 mb-3 font-semibold tracking-[-0.01em] text-[1.4rem];
+    @apply mx-0 mt-0 mb-3 font-semibold text-2xl;
   }
 }
 
@@ -104,17 +104,17 @@
 
 /* ---- chrome ---- */
 .topbar {
-  @apply sticky top-0 z-10 flex items-center h-13 gap-2 px-[clamp(1rem,4vw,2.5rem)] border-b border-border-soft;
+  @apply sticky top-0 z-10 flex items-center h-13 px-4 border-b border-border-soft;
   @apply bg-[rgba(247,243,233,0.82)] backdrop-blur-md backdrop-saturate-[1.2];
 }
 .brand {
-  @apply flex items-center gap-2 font-semibold text-base text-ink;
+  @apply flex items-center gap-2 mr-4 font-semibold text-base text-ink;
   &:hover {
     @apply no-underline text-garnet;
   }
 }
 .navlink {
-  @apply inline-flex items-center gap-1 appearance-none bg-none border-none cursor-pointer py-[0.3rem] px-[0.6rem] rounded-[7px] text-[0.9rem] font-semibold text-text-dim transition-colors duration-150;
+  @apply inline-flex items-center gap-1 appearance-none bg-none border-none cursor-pointer py-1 px-2.5 rounded-lg font-semibold text-text-dim transition-colors duration-150;
   &:hover {
     @apply no-underline text-ink bg-paper-sunken;
   }
@@ -131,11 +131,11 @@
   @apply w-3 h-3 opacity-70;
 }
 .cardsmenu-menu {
-  @apply absolute top-[calc(100%+0.4rem)] left-0 z-20 min-w-40 flex flex-col p-[0.3rem] bg-paper-raised border border-border rounded-card shadow-lift;
+  @apply absolute top-[calc(100%+0.4rem)] left-0 z-20 min-w-50 flex flex-col p-1 bg-paper-raised border border-border rounded-card shadow-lift;
   animation: var(--animate-rise-fast);
 }
 .cardsmenu-item {
-  @apply py-[0.45rem] px-[0.6rem] rounded-lg text-[0.9rem] font-semibold text-text-dim transition-colors duration-150;
+  @apply py-1 px-2 rounded-lg font-semibold text-text-dim transition-colors duration-150;
   &:hover {
     @apply no-underline text-ink bg-paper-sunken;
   }
@@ -161,7 +161,7 @@
   @apply min-w-52 right-0 left-auto;
 }
 .account-email {
-  @apply m-0 py-[0.4rem] px-[0.6rem] text-[0.8rem] text-text-dim truncate border-b border-border-soft mb-[0.3rem];
+  @apply m-0 py-1.5 px-2.5 text-xs text-text-dim truncate border-b border-border-soft mb-1;
 }
 .account-signout {
   @apply text-left cursor-pointer appearance-none bg-none border-none w-full;
@@ -178,10 +178,10 @@
   @apply m-0 text-ink;
 }
 .auth-field {
-  @apply flex flex-col gap-1.5 text-[0.85rem] font-semibold text-text-dim;
+  @apply flex flex-col gap-1.5 font-semibold text-text-dim;
 }
 .auth-notice {
-  @apply m-0 text-[0.9rem] text-gold;
+  @apply m-0 text-gold;
 }
 .auth-submit {
   @apply py-2 px-3 rounded-lg bg-garnet text-paper-raised font-semibold cursor-pointer border-none transition-colors duration-150;
@@ -193,11 +193,11 @@
   }
 }
 .auth-alt {
-  @apply m-0 text-[0.88rem] text-text-dim text-center;
+  @apply m-0 text-text-dim text-center;
 }
 
 .cardsearch {
-  @apply relative ml-4 w-[min(360px,42vw)];
+  @apply relative w-[min(360px,42vw)] mr-2;
 }
 .cardsearch-input, .search {
   @apply w-full py-1 px-2.5 bg-paper-raised border border-border rounded-lg text-ink shadow-sm transition-[border-color,box-shadow] duration-150;
@@ -219,22 +219,22 @@
   @apply hidden;
 }
 .cardsearch-menu {
-  @apply absolute top-[calc(100%+0.4rem)] inset-x-0 z-20 list-none m-0 p-[0.3rem] max-h-[min(70vh,420px)] overflow-y-auto bg-paper-raised border border-border rounded-card shadow-lift;
+  @apply absolute top-[calc(100%+0.4rem)] inset-x-0 z-20 list-none m-0 p-1 max-h-[min(70vh,420px)] overflow-y-auto bg-paper-raised border border-border rounded-card shadow-lift;
   animation: var(--animate-rise-fast);
 }
 .cardsearch-empty {
-  @apply py-[0.6rem] px-[0.7rem] text-text-dim text-[0.88rem];
+  @apply py-2.5 px-3 text-text-dim;
 }
 .cardsearch-hit {
-  @apply flex items-center gap-2 w-full py-[0.45rem] px-[0.6rem] bg-none border-none rounded-lg text-left text-text cursor-pointer;
+  @apply flex items-center gap-2 w-full py-2 px-2.5 bg-none border-none rounded-lg text-left text-text cursor-pointer;
   &.is-active {
     @apply bg-paper-sunken;
   }
 }
 .cardsearch-name {
-  @apply font-semibold text-ink truncate flex-[0_1_auto];
+  @apply font-semibold text-ink truncate flex-initial;
   mark {
-    @apply bg-[rgba(176,138,46,0.28)] text-inherit rounded-[3px];
+    @apply bg-[rgba(176,138,46,0.28)] text-inherit rounded-sm;
   }
 }
 .cardsearch-cost {
@@ -256,9 +256,9 @@ main {
 }
 
 .crumbs {
-  @apply mx-0 mt-0 mb-6 text-text-dim text-[0.85rem] tracking-[0.01em];
+  @apply mx-0 mt-0 mb-4 text-text-dim;
   .sep {
-    @apply text-border-strong mx-[0.3rem];
+    @apply text-border-strong mx-1;
   }
 }
 
@@ -283,13 +283,13 @@ main {
   @apply hidden;
 }
 .page-head-count {
-  @apply text-[0.95rem] font-medium text-text-faint;
+  @apply text-base font-medium text-text-faint;
 }
 
 .tabs {
-  @apply flex gap-[0.4rem] mb-6 border-b border-border-soft;
+  @apply flex gap-1.5 mb-4 border-b border-border-soft;
   .tab {
-    @apply appearance-none bg-none border-b-2 border-b-transparent -mb-px py-[0.55rem] px-[0.9rem] text-[0.95rem] font-semibold text-text-dim cursor-pointer transition-[color,border-color] duration-150;
+    @apply appearance-none bg-none border-b-2 border-b-transparent -mb-px py-2 px-3.5 text-base font-semibold text-text-dim cursor-pointer transition-[color,border-color] duration-150;
     &:hover {
       @apply text-ink;
     }
@@ -298,7 +298,7 @@ main {
     }
   }
   .tab-count {
-    @apply ml-[0.4rem] text-[0.8rem] font-medium text-text-faint;
+    @apply ml-1.5 text-xs font-medium text-text-faint;
   }
 }
 
@@ -306,25 +306,16 @@ main {
   @apply mb-6;
 }
 .set-group-title {
-  @apply mx-0 mt-0 mb-[0.85rem] text-base font-semibold uppercase text-text-dim;
+  @apply mx-0 mt-0 mb-3.5 text-base font-semibold uppercase text-text-dim;
 }
 
 .set-grid {
-  @apply list-none m-0 p-0 grid gap-[0.72rem] grid-cols-[repeat(auto-fill,minmax(285px,1fr))];
+  @apply list-none m-0 p-0 grid gap-3 grid-cols-[repeat(auto-fill,minmax(285px,1fr))];
 }
 .set-card {
-  @apply relative flex items-center gap-[0.85rem] p-[0.85rem] bg-paper-raised border border-border-soft rounded-card text-text shadow-sm overflow-hidden transition-[border-color,transform,box-shadow] duration-180;
-  /* gilt edge that grows on hover */
-  &::before {
-    content: "";
-    @apply absolute left-0 top-0 bottom-0 w-0.75 origin-top scale-y-0 transition-transform duration-200;
-    background: linear-gradient(var(--color-gold-bright), var(--color-garnet));
-  }
+  @apply relative flex items-center gap-3.5 p-3.5 bg-paper-raised border border-border-soft rounded-card text-text shadow-sm overflow-hidden transition-[border-color,transform,box-shadow] duration-180;
   &:hover {
     @apply no-underline border-border-strong bg-[#fffdf7] -translate-y-0.5 shadow-card;
-  }
-  &:hover::before {
-    @apply scale-y-100;
   }
 }
 .set-icon {
@@ -337,35 +328,41 @@ main {
   @apply w-5 h-5 rounded-full bg-border-strong;
 }
 .set-card-body {
-  @apply min-w-0 flex flex-col gap-[0.2rem];
+  @apply min-w-0 flex flex-col gap-1;
 }
 .set-name {
-  @apply font-semibold tracking-[-0.005em] text-ink truncate;
+  @apply font-semibold text-ink truncate;
 }
 .set-meta {
-  @apply flex items-center flex-wrap gap-[0.3rem_0.55rem] text-[0.8rem] text-text-dim;
+  @apply flex items-center flex-wrap gap-y-1 gap-x-2 text-xs text-text-dim;
 }
 .code-badge {
-  @apply font-mono uppercase text-[0.68rem] font-semibold tracking-[0.08em] py-[0.12rem] px-[0.42rem] rounded-[5px] bg-paper-sunken border border-border text-gold;
+  @apply font-mono uppercase text-xs font-semibold tracking-widest py-0.5 px-1.5 rounded-md bg-paper-sunken border border-border text-gold;
 }
 
 /* ---- set header ---- */
 .set-head {
-  @apply flex items-center gap-[1.15rem] mb-6;
+  @apply flex items-center gap-5 mb-6;
 }
 .set-head-icon {
   @apply w-14 h-14 opacity-85;
 }
 .set-head-meta {
-  @apply flex flex-wrap items-center gap-[0.65rem] mx-0 mt-2 mb-0 text-text-dim text-[0.9rem];
+  @apply flex flex-wrap items-center gap-2.5 mx-0 mt-2 mb-0 text-text-dim;
+}
+.format-blurb {
+  @apply max-w-[64ch] mt-1 mb-7 text-text-dim text-base leading-relaxed;
+}
+.set-card-desc {
+  @apply text-xs text-text-dim leading-snug line-clamp-3;
 }
 .ext-link {
-  @apply ml-auto text-[0.85rem] font-medium whitespace-nowrap self-start;
+  @apply ml-auto font-medium whitespace-nowrap self-start;
 }
 
 /* ---- card grid ---- */
 .card-grid {
-  @apply list-none m-0 p-0 grid gap-[0.72rem] grid-cols-[repeat(auto-fill,minmax(200px,1fr))];
+  @apply list-none m-0 p-0 grid gap-3 grid-cols-[repeat(auto-fill,minmax(200px,1fr))];
 }
 .card-tile {
   @apply block text-text;
@@ -383,20 +380,20 @@ main {
   }
 }
 .card-img-fallback {
-  @apply w-full h-full grid place-items-center p-4 text-center text-text-dim text-[0.9rem] border border-border-soft;
+  @apply w-full h-full grid place-items-center p-4 text-center text-text-dim border border-border-soft;
   background: linear-gradient(160deg, var(--color-paper-raised), var(--color-paper-sunken));
   &.large {
-    @apply text-[1.15rem];
+    @apply text-lg;
   }
 }
 .card-tile-info {
-  @apply mt-[0.2rem] flex items-center gap-[0.4rem];
+  @apply mt-1 flex items-center gap-1.5;
   .muted {
-    @apply font-mono text-[0.72rem] flex-none;
+    @apply font-mono text-xs flex-none;
   }
 }
 .card-tile-name {
-  @apply font-semibold text-[0.85rem] text-ink truncate flex-auto min-w-0;
+  @apply font-semibold text-ink truncate flex-auto min-w-0;
 }
 
 /* ---- rarity ---- */
@@ -426,7 +423,7 @@ main {
 .pager {
   @apply flex items-center justify-center gap-5 mt-10;
   button {
-    @apply py-2 px-[1.1rem] bg-paper-raised border border-border rounded-lg text-ink cursor-pointer text-[0.9rem] font-medium shadow-sm transition-[border-color,background] duration-150;
+    @apply py-2 px-4.5 bg-paper-raised border border-border rounded-lg text-ink cursor-pointer font-medium shadow-sm transition-[border-color,background] duration-150;
     &:hover:not(:disabled) {
       @apply border-gold bg-[#fffdf7];
     }
@@ -435,7 +432,7 @@ main {
     }
   }
   .muted {
-    @apply font-mono text-[0.82rem];
+    @apply font-mono;
   }
 }
 
@@ -450,20 +447,20 @@ main {
   @apply w-full rounded-[4.75%/3.5%] shadow-lift block;
 }
 .price-row {
-  @apply flex gap-2 mt-[1.15rem];
+  @apply flex gap-2 mt-4.5;
 }
 .price {
-  @apply flex-1 flex flex-col items-center gap-[0.15rem] p-[0.55rem] bg-paper-raised border border-border-soft rounded-[9px] shadow-sm;
+  @apply flex-1 flex flex-col items-center gap-0.5 p-2 bg-paper-raised border border-border-soft rounded-lg shadow-sm;
 }
 .price-label {
-  @apply text-[0.65rem] uppercase tracking-[0.08em] text-text-faint;
+  @apply text-xs uppercase tracking-widest text-text-faint;
 }
 .price-value {
   @apply font-mono font-semibold text-gold;
 }
 
 .card-title-row {
-  @apply flex items-center gap-[0.85rem] flex-wrap;
+  @apply flex items-center gap-3.5 flex-wrap;
 }
 .cost {
   @apply inline-flex gap-0.5;
@@ -472,7 +469,7 @@ main {
   }
 }
 .type-line {
-  @apply text-text-dim font-semibold my-[0.85rem] pb-[0.85rem] border-b border-border-soft;
+  @apply text-text-dim font-semibold my-3.5 pb-3.5 border-b border-border-soft;
 }
 .oracle-text {
   p {
@@ -480,26 +477,26 @@ main {
   }
 }
 .flavor {
-  @apply text-text-dim italic border-l-2 border-gold pl-4 my-[1.35rem];
+  @apply text-text-dim italic border-l-2 border-gold pl-4 my-5.5;
 }
 .stats {
-  @apply font-semibold [font-variant-numeric:tabular-nums] my-[0.85rem];
+  @apply font-semibold tabular-nums my-3.5;
 }
 
 .facts {
-  @apply grid gap-[0.2rem_1.5rem] my-4 py-[0.85rem] border-y border-border-soft grid-cols-[max-content_1fr];
+  @apply grid gap-y-1 gap-x-6 my-4 py-3.5 border-y border-border-soft grid-cols-[max-content_1fr];
   dt {
-    @apply text-text-faint text-[0.7rem] uppercase tracking-[0.07em] font-semibold self-center;
+    @apply text-text-faint text-xs uppercase tracking-wider font-semibold self-center;
   }
   dd {
     @apply m-0;
   }
 }
 .inline-flex {
-  @apply inline-flex items-center gap-[0.3rem];
+  @apply inline-flex items-center gap-1;
 }
 .inline-set {
-  @apply inline-flex items-center gap-[0.3rem];
+  @apply inline-flex items-center gap-1;
   &:hover {
     @apply text-garnet;
   }
@@ -509,10 +506,10 @@ main {
 }
 
 .legalities {
-  @apply flex flex-wrap gap-[0.4rem] py-1;
+  @apply flex flex-wrap gap-1.5 py-1;
 }
 .legality {
-  @apply text-[0.72rem] py-[0.28rem] px-[0.6rem] rounded-md font-semibold tracking-[0.01em];
+  @apply text-xs py-1 px-2.5 rounded-md font-semibold;
 }
 .legality-legal {
   @apply bg-[rgba(70,130,80,0.16)] text-[#3f7a4c] border border-[rgba(70,130,80,0.28)];
@@ -526,12 +523,12 @@ main {
 
 /* ---- printings list ---- */
 .versions {
-  @apply py-[1.85rem];
+  @apply py-7.5;
   ul {
-    @apply list-none m-0 p-0 flex flex-col gap-[0.4rem];
+    @apply list-none m-0 p-0 flex flex-col gap-1.5;
   }
   li a {
-    @apply flex items-center gap-[0.7rem] py-[0.65rem] px-[0.95rem] bg-paper-raised border border-border-soft rounded-[9px] text-text shadow-sm transition-[border-color,background] duration-150;
+    @apply flex items-center gap-3 py-2.5 px-4 bg-paper-raised border border-border-soft rounded-lg text-text shadow-sm transition-[border-color,background] duration-150;
     &:hover {
       @apply no-underline border-gold bg-[#fffdf7];
     }
@@ -554,23 +551,358 @@ main {
 }
 .v-date,
 .versions .muted {
-  @apply font-mono text-[0.8rem];
+  @apply font-mono text-xs;
 }
 .v-meta {
-  @apply flex-1 flex flex-col gap-[0.2rem] min-w-0;
+  @apply flex-1 flex flex-col gap-1 min-w-0;
 }
-.v-meta-top,
-.v-meta-bottom {
+.v-meta-top, .v-meta-bottom {
   @apply flex items-center gap-2;
 }
 .v-prices {
-  @apply flex gap-[0.7rem];
+  @apply flex gap-3;
 }
 .v-price {
-  @apply inline-flex items-baseline gap-[0.3rem] font-mono text-[0.75rem] font-semibold text-ink py-[0.1rem] px-[0.4rem] border border-border-soft rounded-[5px] bg-paper-raised;
+  @apply inline-flex items-baseline gap-1 font-mono text-xs font-semibold text-ink py-0.5 px-1.5 border border-border-soft rounded-md bg-paper-raised;
 }
 .v-price-label {
-  @apply font-medium text-[0.7rem] uppercase tracking-[0.03em] text-text-dim;
+  @apply font-medium text-xs uppercase tracking-wide text-text-dim;
+}
+
+/* ---- shared form controls ---- */
+.input {
+  @apply py-1 px-2.5 bg-paper-raised border border-border rounded-lg text-ink shadow-sm cursor-pointer transition-[border-color,box-shadow] duration-150;
+  &:focus {
+    @apply outline-none border-gold shadow-[0_0_0_3px_rgba(176,138,46,0.16)];
+  }
+}
+.btn {
+  @apply inline-flex items-center gap-1.5 py-2 px-3.5 rounded-lg bg-garnet text-paper-raised font-semibold cursor-pointer border-none transition-colors duration-150;
+  &:hover {
+    @apply no-underline text-paper-raised bg-garnet-bright;
+  }
+  &:disabled {
+    @apply opacity-60 cursor-not-allowed;
+  }
+}
+.btn-danger {
+  @apply bg-paper-raised text-danger border border-[rgba(168,48,42,0.3)];
+  &:hover {
+    @apply text-danger bg-[rgba(168,48,42,0.08)] border-[rgba(168,48,42,0.45)];
+  }
+}
+.btn-soft {
+  @apply bg-paper-raised text-text-dim border border-border;
+  &:hover {
+    @apply text-ink bg-paper-sunken;
+  }
+}
+.btn-kbd {
+  @apply inline-flex items-center h-5 min-w-5 px-1 justify-center bg-black/10 border border-white/15 rounded text-xs font-sans leading-none;
+}
+.btn-soft .btn-kbd {
+  @apply bg-paper-sunken border-border text-text-dim;
+}
+.field-label {
+  @apply text-xs uppercase tracking-wider font-semibold text-text-faint;
+}
+
+/* ---- decks index ---- */
+.deck-list-head {
+  @apply flex items-baseline gap-4 mb-6;
+  h1 {
+    @apply mb-0;
+  }
+}
+.deck-create {
+  @apply flex flex-wrap items-end gap-3 p-4 mb-7 bg-paper-raised border border-border rounded-card shadow-sm;
+}
+.deck-create-field {
+  @apply flex flex-col gap-1.5;
+}
+.deck-create .search,
+.deck-create .input {
+  @apply min-w-52;
+}
+.deck-public-tag {
+  @apply text-xs font-semibold uppercase tracking-wider py-0.5 px-1.5 rounded-md bg-[rgba(70,130,80,0.16)] text-[#3f7a4c] border border-[rgba(70,130,80,0.28)];
+}
+
+/* ---- deck builder ---- */
+.deck-head {
+  @apply flex flex-col gap-2 mb-4;
+}
+.deck-head-top {
+  @apply flex items-center gap-3 flex-wrap;
+}
+.deck-name-input {
+  @apply flex-1 min-w-48 py-1 px-2 -mx-2 bg-transparent border border-transparent rounded-lg text-ink font-semibold tracking-tight text-[clamp(1.4rem,1.4rem+1vw,2rem)];
+  &:hover {
+    @apply bg-paper-sunken;
+  }
+  &:focus {
+    @apply outline-none bg-paper-raised border-gold shadow-[0_0_0_3px_rgba(176,138,46,0.16)];
+  }
+}
+.deck-meta-row {
+  @apply flex items-center gap-3 flex-wrap text-text-dim;
+}
+.toggle {
+  @apply inline-flex items-center gap-2 cursor-pointer select-none font-semibold text-text-dim;
+  input {
+    @apply accent-garnet w-4 h-4;
+  }
+}
+.deck-description {
+  @apply w-full max-w-180 py-2 px-2.5 bg-paper-raised border border-border rounded-lg text-text shadow-sm resize-y;
+  &::placeholder {
+    @apply text-text-faint;
+  }
+  &:focus {
+    @apply outline-none border-gold shadow-[0_0_0_3px_rgba(176,138,46,0.16)];
+  }
+}
+.deck-description-text {
+  @apply max-w-180 m-0 text-text-dim;
+}
+
+.deck-toolbar {
+  @apply flex flex-wrap items-center gap-3 mb-5;
+}
+.cardpicker {
+  @apply relative flex-1 min-w-60;
+}
+.cardpicker-row {
+  @apply flex items-center gap-2;
+  .search {
+    @apply flex-1 min-w-0;
+  }
+}
+
+.deck-stats {
+  @apply flex items-center gap-4 flex-wrap mb-6 py-3 border-y border-border-soft text-text-dim;
+}
+.deck-stat-num {
+  @apply font-semibold text-ink tabular-nums;
+}
+.deck-pips {
+  @apply inline-flex gap-px;
+  .symbol {
+    @apply w-4.5 h-4.5;
+  }
+}
+
+.deck-body {
+  @apply relative;
+}
+.deck-columns {
+  @apply grid gap-x-8 gap-y-7 items-start grid-cols-[repeat(auto-fill,minmax(330px,1fr))];
+}
+.deck-list-layout {
+  @apply grid gap-x-8 gap-y-7 items-start grid-cols-1 lg:grid-cols-4;
+}
+/* Columns 1–2: the main deck flows its category groups across two columns.
+   Boards become block-level so categories (kept intact) can break across them. */
+.deck-main-cols {
+  @apply lg:col-span-2 lg:columns-2 gap-x-8;
+  .deck-board {
+    @apply block;
+  }
+  .deck-board + .deck-board {
+    @apply mt-5;
+  }
+  .deck-cat {
+    @apply break-inside-avoid;
+  }
+}
+.deck-preview-col {
+  /* Reserve a card's worth of height so the layout doesn't grow (shifting the
+     content below) when the hover preview appears. */
+  @apply sticky top-4 aspect-[63/88];
+}
+.deck-preview-img {
+  @apply w-full rounded-[4.75%/3.5%] shadow-2xl;
+}
+.deck-board {
+  @apply flex flex-col gap-2;
+}
+.deck-board-head {
+  @apply flex items-baseline gap-2 m-0 text-base font-semibold uppercase tracking-wide text-text-dim;
+}
+.deck-board-count {
+  @apply text-text-faint font-medium tabular-nums;
+}
+.deck-cat {
+  @apply mt-1;
+}
+.deck-cat-head {
+  @apply m-0 mb-1 text-xs uppercase tracking-wider font-semibold text-text-faint;
+}
+.deck-rows {
+  @apply list-none m-0 p-0 flex flex-col;
+}
+.deck-row {
+  @apply flex items-center;
+}
+.deck-stepper {
+  @apply inline-flex items-center gap-1 flex-none;
+}
+.deck-row-name {
+  @apply inline-flex min-w-0 gap-1 truncate text-ink font-medium;
+}
+.deck-row-cost {
+  @apply inline-flex gap-px flex-none;
+  .symbol {
+    @apply w-3.5 h-3.5;
+  }
+}
+.deck-row-actions {
+  @apply flex items-center gap-1 flex-none opacity-0 transition-opacity duration-150;
+  .deck-row:hover &,
+  &:focus-within {
+    @apply opacity-100;
+  }
+}
+.deck-row-board {
+  @apply appearance-none text-xs py-0.5 px-1.5 rounded-md border border-border bg-paper-raised text-text-dim cursor-pointer;
+  &:focus {
+    @apply outline-none border-gold;
+  }
+}
+.icon-btn {
+  @apply inline-flex items-center justify-center w-6 h-6 flex-none rounded-md border border-border-soft bg-paper-raised text-text-dim cursor-pointer leading-none text-base;
+  &:hover {
+    @apply border-gold text-ink bg-[#fffdf7];
+  }
+  &:disabled {
+    @apply opacity-40 cursor-default;
+  }
+}
+
+.deck-visual {
+  @apply flex flex-col gap-8;
+}
+.deck-visual-board {
+  @apply flex flex-col gap-3;
+}
+.deck-visual-grid {
+  @apply list-none m-0 p-0 grid gap-3 grid-cols-[repeat(auto-fill,minmax(140px,1fr))];
+}
+.deck-visual-card {
+  @apply relative;
+}
+.deck-visual-qty {
+  @apply absolute top-1.5 right-1.5 min-w-6 h-6 px-1.5 inline-flex items-center justify-center rounded-full text-paper text-xs font-bold tabular-nums shadow-card pointer-events-none;
+  background: color-mix(in srgb, var(--color-ink) 88%, transparent);
+}
+
+.deck-price {
+  @apply flex flex-col gap-6 max-w-2xl;
+}
+.deck-price-subtabs {
+  @apply mb-0;
+  .tab {
+    @apply text-sm py-1.5 px-3;
+  }
+}
+.deck-price-total {
+  @apply flex items-baseline justify-between gap-3 pb-3 border-b border-border text-base font-semibold uppercase tracking-wide text-text-dim;
+}
+.deck-price-total-value {
+  @apply text-2xl font-bold text-ink tabular-nums normal-case tracking-normal;
+}
+.deck-price-note {
+  @apply -mt-3 text-xs;
+}
+.deck-price-board {
+  @apply flex flex-col gap-2;
+}
+.deck-price-table {
+  @apply w-full border-collapse;
+  td {
+    @apply py-1 border-b border-border-soft;
+  }
+}
+.deck-price-qty {
+  @apply w-8 text-text-faint tabular-nums;
+}
+.deck-price-name {
+  @apply text-ink font-medium;
+}
+.deck-price-unit {
+  @apply text-right text-text-dim tabular-nums whitespace-nowrap;
+}
+.deck-price-line {
+  @apply text-right font-semibold text-ink tabular-nums whitespace-nowrap pl-4;
+}
+
+.deck-siblings {
+  @apply mt-4 pt-4 border-t border-border-soft flex flex-col gap-2;
+}
+.deck-sibling-list {
+  @apply list-none m-0 p-0 flex flex-col;
+}
+.deck-sibling {
+  @apply flex items-baseline gap-3 py-1 rounded-md;
+}
+.deck-sibling.is-current {
+  @apply bg-paper-raised font-semibold text-ink;
+}
+.deck-sibling-rank {
+  @apply w-5 flex-none text-text-faint tabular-nums;
+}
+.deck-sibling-name {
+  @apply flex-1 min-w-0 truncate;
+}
+.deck-sibling-player {
+  @apply flex-none truncate font-normal text-text-faint;
+}
+
+/* ---- tournament standings ---- */
+.standings {
+  @apply w-full border-collapse;
+  th {
+    @apply text-left font-semibold text-text-dim uppercase text-xs tracking-wider py-2 px-3 border-b border-border;
+  }
+  td {
+    @apply py-2 px-3 border-b border-border-soft;
+  }
+  tbody tr:hover {
+    @apply bg-paper-raised;
+  }
+}
+.standings-rank {
+  @apply w-12 text-text-dim tabular-nums;
+}
+.standings-record {
+  @apply text-right tabular-nums whitespace-nowrap;
+}
+
+/* ---- meta archetypes ---- */
+.meta-archetypes {
+  @apply list-none m-0 p-0 grid gap-3 grid-cols-[repeat(auto-fill,minmax(285px,1fr))];
+}
+.meta-arch {
+  @apply p-3.5 bg-paper-raised border border-border-soft rounded-card shadow-sm;
+}
+.meta-arch-head {
+  @apply flex items-baseline justify-between gap-2;
+}
+.meta-arch-name {
+  @apply font-semibold text-ink;
+}
+.meta-arch-share {
+  @apply text-base font-medium text-text-dim tabular-nums;
+}
+.meta-arch-bar {
+  @apply h-1.5 my-2 rounded-full bg-paper-sunken overflow-hidden;
+  span {
+    @apply block h-full rounded-full;
+    background: linear-gradient(90deg, var(--color-gold-bright), var(--color-garnet));
+  }
+}
+.meta-arch-meta {
+  @apply flex gap-3 text-text-faint tabular-nums;
 }
 
 /* ---- symbols ---- */
@@ -583,6 +915,6 @@ main {
     @apply grid-cols-1 gap-7;
   }
   .card-figure {
-    @apply static max-w-[320px];
+    @apply static max-w-80;
   }
 }

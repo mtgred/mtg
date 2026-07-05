@@ -93,6 +93,47 @@ export type DeckCard = {
   board: DeckBoard
 }
 
+// A competitive event whose results are tracked (supabase/schemas/tournaments.sql).
+export type Tournament = {
+  id: number
+  name: string
+  format: string | null
+  held_on: string | null
+  location: string | null
+  source_url: string | null
+  player_count: number | null
+}
+
+// A per-format metagame archetype definition (supabase/schemas/archetypes.sql).
+export type Archetype = {
+  id: number
+  format: string
+  name: string
+  sort_order: number | null
+  signature_cards: string[]
+}
+
+// One player's finish at a tournament, plus the deck they played.
+export type TournamentDeck = {
+  id: number
+  tournament_id: number
+  player: string
+  archetype: string | null
+  placement: number | null
+  wins: number | null
+  losses: number | null
+  draws: number | null
+}
+
+// A card entry within a finishing deck (supabase/schemas/tournaments.sql).
+export type TournamentDeckCard = {
+  id: number
+  tournament_deck_id: number
+  card_id: number
+  quantity: number
+  board: DeckBoard
+}
+
 export type Printing = {
   id: string
   card_id: number

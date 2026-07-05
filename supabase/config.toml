@@ -69,6 +69,7 @@ schema_paths = [
   "./schemas/formats.sql",
   "./schemas/decks.sql",
   "./schemas/tournaments.sql",
+  "./schemas/archetypes.sql",
 ]
 
 [db.seed]
@@ -76,7 +77,7 @@ schema_paths = [
 enabled = true
 # Specifies an ordered list of seed files to load during db reset.
 # Supports glob patterns relative to supabase directory: "./seeds/*.sql"
-sql_paths = ["./seeds/formats.sql", "./seed.sql", "./seeds/tournaments.sql"]
+sql_paths = ["./seeds/formats.sql", "./seeds/archetypes.sql", "./seed.sql", "./seeds/tournaments.sql"]
 
 [db.network_restrictions]
 # Enable management of network restrictions.

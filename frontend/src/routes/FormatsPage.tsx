@@ -36,9 +36,6 @@ export default function FormatsPage() {
                 <span className="set-card-body">
                   <span className="set-name">{format.name}</span>
                   {format.description && <span className="set-card-desc">{format.description}</span>}
-                  <span className="set-meta">
-                    <span className="code-badge">{format.code}</span>
-                  </span>
                 </span>
               </Link>
             </li>

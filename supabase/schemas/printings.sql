@@ -39,8 +39,24 @@ CREATE VIEW card_default_printings AS
 SELECT DISTINCT ON (p.card_id)
   p.card_id,
   p.id,
-  p.image_uris
+  p.image_uris,
+  p.prices
 FROM printings p
 JOIN sets s ON s.id = p.set_id
 WHERE s.set_type <> 'token'
 ORDER BY p.card_id, p.released_at ASC NULLS LAST, p.collector_number ASC;
+
+-- The cheapest printing per oracle card: the non-token printing with the lowest
+-- nonfoil USD price (printings without a USD price are excluded, so a card only
+-- appears if at least one printing is priced). Mirrors card_default_printings so
+-- decklist pricing can offer a "cheapest to build" total alongside first-printing
+-- prices, still one row per card. Read-only.
+CREATE VIEW card_cheapest_printings AS
+SELECT DISTINCT ON (p.card_id)
+  p.card_id,
+  p.id,
+  p.prices
+FROM printings p
+JOIN sets s ON s.id = p.set_id
+WHERE s.set_type <> 'token' AND p.prices->>'usd' IS NOT NULL
+ORDER BY p.card_id, (p.prices->>'usd')::numeric ASC;
