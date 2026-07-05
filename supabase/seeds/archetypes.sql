@@ -1,0 +1,114 @@
+-- Archetype classifier definitions (schema: supabase/schemas/archetypes.sql).
+-- Committed reference data, loaded after formats.sql (the only dependency).
+-- signature_cards use exact cards.name; a card absent from the current dataset
+-- simply never matches. min_signatures null => require every signature card.
+--
+-- Coverage tracks the sample decks in supabase/seeds/tournaments.sql so the
+-- classifier visibly reproduces their labels; a few extra real archetypes are
+-- included per format to exercise the per-format rules table.
+insert into archetypes (format, name, sort_order, signature_cards, min_signatures) values
+  -- Modern
+  ('modern',   'Izzet Murktide',     10, array['Murktide Regent', 'Dragon''s Rage Channeler'],                 1),
+  ('modern',   'Boros Energy',       20, array['Ocelot Pride', 'Guide of Souls', 'Amped Raptor'],              2),
+  ('modern',   'Amulet Titan',       30, array['Primeval Titan', 'Amulet of Vigor'],                           2),
+  ('modern',   'Living End',         40, array['Living End', 'Shardless Agent'],                               1),
+  ('modern',   'Mono-Green Tron',    50, array['Urza''s Tower', 'Urza''s Mine', 'Urza''s Power Plant'],        2),
+  ('modern',   'Domain Zoo',         60, array['Scion of Draco', 'Tribal Flames', 'Territorial Kavu'],         2),
+  -- Pioneer
+  ('pioneer',  'Izzet Phoenix',      10, array['Arclight Phoenix'],                                            1),
+  ('pioneer',  'Rakdos Midrange',    20, array['Bloodtithe Harvester', 'Fable of the Mirror-Breaker // Reflection of Kiki-Jiki'], 1),
+  ('pioneer',  'Mono-Green Devotion',30, array['Old-Growth Troll', 'Cavalier of Thorns', 'Karn, the Great Creator'], 2),
+  ('pioneer',  'Lotus Field Combo',  40, array['Lotus Field', 'Thespian''s Stage'],                            2),
+  -- Standard
+  ('standard', 'Esper Pixie',        10, array['Fear of Isolation', 'Stormchaser''s Talent', 'This Town Ain''t Big Enough'], 2),
+  ('standard', 'Mono-Red Aggro',     20, array['Heartfire Hero', 'Monstrous Rage', 'Screaming Nemesis'],       2),
+  ('standard', 'Domain Ramp',        30, array['Zur, Eternal Schemer', 'Leyline Binding', 'Overlord of the Hauntwoods'], 2);
+
+-- Premodern. Archetype names follow the tcdecks.net Premodern archetype list
+-- (https://www.tcdecks.net/format.php?format=Premodern). Combo decks named
+-- after their engine come first (a single decisive card => min 1); Survival
+-- variants share the base card and are split by their second engine piece —
+-- the generic 'Survival - Other' catches the rest because specific variants
+-- out-match it (matched DESC in tournament_deck_archetypes).
+insert into archetypes (format, name, sort_order, signature_cards, min_signatures) values
+  ('premodern', 'Stiflenought',            30, array['Phyrexian Dreadnought', 'Stifle', 'Vision Charm'],                 null),
+  ('premodern', 'Parallax Replenish',      10, array['Replenish', 'Opalescence', 'Parallax Wave', 'Attunement'],         null),
+  ('premodern', 'Enchantress',            340, array['Argothian Enchantress', 'Enchantress''s Presence', 'Wild Growth', 'Elephant Grass', 'Solitary Confinement', 'Sterling Grove'], 3),
+  ('premodern', 'Landstill',              610, array['Counterspell', 'Standstill', 'Wrath of God', 'Faerie Conclave'],   null),
+  ('premodern', 'RG Sligh',               390, array['Grim Lavamancer', 'Mogg Fanatic', 'Lightning Bolt', 'Karplusan Forest'], null),
+  ('premodern', 'Sligh',                  400, array['Cursed Scroll', 'Jackal Pup', 'Mogg Fanatic', 'Fireblast', 'Grim Lavamancer', 'Barbarian Ring'], 4),
+  ('premodern', 'Burn',                   405, array['Lightning Bolt', 'Incinerate', 'Fireblast', 'Sulfuric Vortex', 'Flame Rift', 'Seal of Fire'], 4),
+  ('premodern', '5C Oath Ponza',          295, array['Oath of Druids', 'Sphere of Resistance', 'Thermokarst', 'Winter''s Grasp', 'Terravore', 'City of Brass', 'Gemstone Mine'],   6),
+  ('premodern', 'GW Oath Ponza',          295, array['Oath of Druids', 'Sphere of Resistance', 'Thermokarst', 'Winter''s Grasp', 'Terravore', 'Brushland'],   5),
+  ('premodern', 'GR Oath Ponza',          296, array['Oath of Druids', 'Sphere of Resistance', 'Thermokarst', 'Winter''s Grasp', 'Terravore', 'Karplusan Forest'],   5),
+  ('premodern', 'Terrageddon',            310, array['Terravore', 'Armageddon', 'Cataclysm'],                            2),
+  ('premodern', 'Stasis',                 120, array['Stasis'],                                                          1),
+  ('premodern', 'The Rock',               650, array['Pernicious Deed', 'Wall of Blossoms', 'Wall of Roots', 'Ravenous Rats', 'Krosan Tusker', 'Duress', 'Cabal Therapy'], 5),
+  ('premodern', 'Full English Breakfast', 210, array['Survival of the Fittest', 'Volrath''s Shapeshifter', 'Phyrexian Devourer'], null),
+  ('premodern', 'Devourer Combo',         200, array['Phyrexian Devourer', 'Tinker', 'Fling', 'Altar of Dementia'],      null),
+  ('premodern', 'Pit Rack',               640, array['The Rack', 'Bottomless Pit'],                                      null),
+  ('premodern', 'Aluren',                  50, array['Aluren', 'Cavern Harpy', 'Soul Warden'],                           null),
+  ('premodern', 'Deadguy Ale',            540, array['Gerrard''s Verdict', 'Vindicate', 'Dark Ritual', 'Hypnotic Specter'],    null),
+  ('premodern', 'Pandeburst',              20, array['Saproling Burst', 'Pandemonium'],                                  null),
+  ('premodern', 'Trix',                    40, array['Illusions of Grandeur', 'Donate'],                                 null),
+  ('premodern', 'Doomsday',                60, array['Doomsday'],                                                        1),
+  ('premodern', 'Fluctuator',              70, array['Fluctuator'],                                                      1),
+  ('premodern', 'Battle of Wits',          80, array['Battle of Wits'],                                                  1),
+  ('premodern', 'Dragonstorm',             90, array['Dragonstorm'],                                                     1),
+  ('premodern', 'Dream Halls',            100, array['Dream Halls'],                                                     1),
+  ('premodern', 'Sneak Attack',           110, array['Sneak Attack'],                                                    1),
+  ('premodern', 'Iggy Pop',               130, array['Ill-Gotten Gains', 'Lion''s Eye Diamond', 'Cabal Ritual'],          null),
+  ('premodern', 'Storm',                  140, array['Mind''s Desire', 'Brain Freeze'],                                  1),
+  ('premodern', 'Cephalid Breakfast',     150, array['Cephalid Illusionist', 'Nomads en-Kor'],                           null),
+  ('premodern', 'Life',                   160, array['Daru Spiritualist', 'Task Force', 'Worthy Cause', 'Starlit Sanctum'], 2),
+  ('premodern', 'Pebbles',                170, array['Enduring Renewal', 'Goblin Bombardment'],                          null),
+  ('premodern', 'Pattern Rector',         180, array['Pattern of Rebirth', 'Academy Rector'],                            null),
+  ('premodern', 'Survival Infestation',   220, array['Survival of the Fittest', 'Zombie Infestation'],                   null),
+  ('premodern', 'Survival Recurring',     230, array['Survival of the Fittest', 'Recurring Nightmare', 'Great Whale', 'Anger', 'Ashen Ghoul'], 2),
+  ('premodern', 'Survival Tradewind',     240, array['Survival of the Fittest', 'Tradewind Rider'],                      null),
+  ('premodern', 'Survival Welder',        250, array['Survival of the Fittest', 'Goblin Welder'],                        null),
+  ('premodern', 'Survival - Other',       260, array['Survival of the Fittest'],                                         1),
+  ('premodern', 'Reanimator',             270, array['Exhume', 'Animate Dead', 'Reanimate'],                             2),
+  ('premodern', 'Frenetic Encounter',     280, array['Frenetic Efreet', 'Chance Encounter'],                             null),
+  ('premodern', 'Pyrostatic Oath',        290, array['Oath of Druids', 'Pyrostatic Pillar'],                             null),
+  ('premodern', 'Balancing Tings',        320, array['Balancing Act'],                                                   1),
+  ('premodern', 'Turbo Lands',            330, array['Horn of Greed', 'Exploration', 'Time Warp'],                       2),
+  ('premodern', 'Gamekeeper',             350, array['Gamekeeper'],                                                      1),
+  ('premodern', 'Trinity',                360, array['Rofellos, Llanowar Emissary', 'Plow Under'],                       2),
+  ('premodern', 'Angry Ghoul',            370, array['Hermit Druid', 'Sutured Ghoul', 'Shallow Grave'],                  null),
+  ('premodern', 'Angry Hermit',           380, array['Hermit Druid', 'Phyrexian Dreadnought', 'Shallow Grave'],          null),
+  ('premodern', 'Goblins',                410, array['Goblin Lackey', 'Goblin Matron', 'Goblin Ringleader', 'Goblin Piledriver', 'Goblin Sharpshooter'], 2),
+  ('premodern', 'White Weenie',           420, array['Savannah Lions', 'Mother of Runes', 'Soltari Priest', 'Soltari Monk', 'Empyrial Armor'], 2),
+  ('premodern', 'Rebels',                 430, array['Ramosian Sergeant', 'Lin Sivvi, Defiant Hero'],                    1),
+  ('premodern', 'Elves',                  440, array['Priest of Titania', 'Quirion Ranger', 'Wirewood Symbiote', 'Llanowar Elves'], 2),
+  ('premodern', 'UG Madness',             450, array['Wild Mongrel', 'Arrogant Wurm', 'Basking Rootwalla', 'Yavimaya Coast'], null),
+  ('premodern', 'RG Survival Madness',    450, array['Wild Mongrel', 'Arrogant Wurm', 'Basking Rootwalla', 'Survival of the Fittest', 'Squee, Goblin Nabob', 'Karplusan Forest'], null),
+  ('premodern', 'Gro-A-Tog',              470, array['Psychatog', 'Quirion Dryad', 'Gush'],                              null),
+  ('premodern', 'Mono Green',             485, array['Rogue Elephant', 'Skyshroud Elite', 'River Boa', 'Rancor', 'Pouncing Jaguar', 'Wild Dogs', 'Ravenous Baloth', 'Krosan Tusker', 'Living Wish'], 3),
+  ('premodern', 'Zombies',                490, array['Rotlung Reanimator', 'Lord of the Undead', 'Carnophage'], 2),
+  ('premodern', 'Mono Black Aggro',       495, array['Dauthi Slayer', 'Dauthi Horror', 'Skittering Skirge', 'Carnophage', 'Sarcomancy', 'Bad Moon'], 3),
+  ('premodern', 'Contamination',          500, array['Contamination', 'Nether Spirit', 'Zombie Infestation'],            2),
+  ('premodern', 'Merfolks',               510, array['Lord of Atlantis'],                                                1),
+  ('premodern', 'Slivers',                520, array['Muscle Sliver', 'Crystalline Sliver', 'Winged Sliver'],            2),
+  ('premodern', 'Tireless Tribe',         530, array['Tireless Tribe', 'Patrol Hound', 'Glory', 'Wild Mongrel', 'Mother of Runes'],         3),
+  ('premodern', 'BW Control',             545, array['Vindicate', 'Gerrard''s Verdict', 'Swords to Plowshares', 'Caves of Koilos', 'Eternal Dragon'], null),
+  ('premodern', 'Psychatog',              600, array['Psychatog'],                                                       1),
+  ('premodern', 'Mono Black Ponza',       620, array['Icequake', 'Rain of Tears', 'Braids, Cabal Minion', 'Rancid Earth', 'Rishadan Port'], 4),
+  ('premodern', 'Moneyball Black',        625, array['Hypnotic Specter', 'Duress', 'Cabal Therapy', 'Dark Ritual', 'Withered Wretch', 'Nantuko Shade', 'Graveborn Muse', 'Cursed Scroll'], 6),
+  ('premodern', 'Pox',                    630, array['Pox'],                                                             1),
+  ('premodern', 'Nic Fit',                660, array['Veteran Explorer', 'Cabal Therapy'],                               null),
+  ('premodern', 'Parfait',                670, array['Land Tax', 'Scroll Rack'],                                         null),
+  ('premodern', 'Astral Slide',           680, array['Astral Slide', 'Lightning Rift', 'Renewed Faith', 'Forgotten Cave'], 2),
+  ('premodern', 'Mono Red Ponza',         690, array['Stone Rain', 'Pillage', 'Avalanche Riders'],                       null),
+  ('premodern', 'Mono Green Ponza',       690, array['Thermokarst', 'Winter''s Grasp', 'Creeping Mold', 'Rishadan Port', 'Tangle Wire', 'Smokestack', 'Llanowar Elves'], 3),
+  ('premodern', 'Tron',                   700, array['Urza''s Tower', 'Urza''s Mine', 'Urza''s Power Plant'],            2),
+  ('premodern', 'MUD',                    710, array['Winter Orb', 'Tangle Wire', 'Thran Dynamo'],                       null),
+  ('premodern', 'Wake Control',           720, array['Mirari''s Wake'],                                                  1),
+  ('premodern', 'Draco Blast',            730, array['Draco', 'Erratic Explosion'],                                      null),
+  ('premodern', 'Domain',                 740, array['Collective Restraint', 'Allied Strategies'],                       1),
+  ('premodern', 'Fires',                  750, array['Fires of Yavimaya'],                                               1),
+  ('premodern', 'Red Control',            760, array['Shard Phoenix', 'Hammer of Bogardan', 'Powder Keg', 'Nevinyrral''s Disk'], 3),
+  ('premodern', 'White Control',          770, array['Armageddon', 'Sphere of Resistance', 'Exalted Angel', 'Decree of Justice', 'Marble Diamond'], 4),
+  ('premodern', 'UW Control',             780, array['Wrath of God', 'Exalted Angel', 'Eternal Dragon'],                 null),
+  ('premodern', 'UR Control',             790, array['Prophetic Bolt', 'Lightning Bolt', 'Counterspell', 'Shivan Reef'], 3),
+  ('premodern', 'UBW Control',            800, array['Meddling Mage', 'Shadowmage Infiltrator', 'Vindicate', 'Dromar''s Charm'], 3);

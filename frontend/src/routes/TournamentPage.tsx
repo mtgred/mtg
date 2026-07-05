@@ -32,6 +32,12 @@ async function loadTournament(id: string): Promise<TournamentData> {
     .order("placement", { ascending: true, nullsFirst: false })
   if (sErr) throw sErr
 
+  // Classifier-resolved archetype per deck (falls back to the reported label
+  // inside the view); see supabase/schemas/archetypes.sql.
+  const { data: labels, error: aErr } = await supabase.from("meta_decks").select("id,archetype").eq("tournament_id", id)
+  if (aErr) throw aErr
+  const archetypes = new Map((labels ?? []).map(l => [l.id as number, l.archetype as string | null]))
+
   let format: Format | null = null
   if (tournament.format) {
     const { data: f } = await supabase
@@ -45,7 +51,10 @@ async function loadTournament(id: string): Promise<TournamentData> {
   return {
     tournament: tournament as Tournament,
     format,
-    standings: (standings ?? []) as unknown as Standing[],
+    standings: ((standings ?? []) as unknown as Standing[]).map(s => ({
+      ...s,
+      archetype: archetypes.get(s.id) ?? s.archetype,
+    })),
   }
 }
 
