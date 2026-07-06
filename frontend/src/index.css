@@ -719,9 +719,6 @@ main {
 .deck-body {
   @apply relative;
 }
-.deck-columns {
-  @apply grid gap-x-8 gap-y-7 items-start grid-cols-[repeat(auto-fill,minmax(330px,1fr))];
-}
 .deck-list-layout {
   @apply grid gap-x-8 gap-y-7 items-start grid-cols-1 lg:grid-cols-4;
 }
