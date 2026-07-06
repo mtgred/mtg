@@ -269,8 +269,11 @@ main {
     @apply mb-0;
   }
   .search-field {
-    @apply relative ml-auto w-70;
+    @apply ml-auto w-70;
   }
+}
+.search-field {
+  @apply relative;
 }
 .search {
   @apply pr-7;
@@ -281,6 +284,15 @@ main {
 .search:focus ~ .search-hint,
 .search:not(:placeholder-shown) ~ .search-hint {
   @apply hidden;
+}
+.filter-pill {
+  @apply inline-flex items-center gap-1.5 text-sm py-1 pl-3 pr-1.5 rounded-full bg-paper-sunken border border-border text-ink;
+}
+.filter-pill-label {
+  @apply text-text-dim;
+}
+.filter-pill button {
+  @apply flex items-center justify-center w-4 h-4 rounded-full leading-none text-text-faint hover:text-ink hover:bg-border;
 }
 .page-head-count {
   @apply text-base font-medium text-text-faint;

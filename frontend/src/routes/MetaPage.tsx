@@ -99,15 +99,23 @@ const tabPath = (format: string, id: Tab) => (id === "meta" ? `/${format}` : `/$
 export default function MetaPage() {
   const { format = "", tab: tabParam } = useParams()
   const { data, loading, error } = useAsync(() => loadMeta(format), [format])
-  // The search filter is URL-driven: ?q= for free-text, ?archetype= for an exact
-  // archetype match — archetype rows deep-link with the latter so "Sligh" doesn't
-  // also match "RG Sligh".
+  // The search filter is URL-driven: ?q= for free-text, ?archetype= / ?player= for
+  // exact matches — archetype and player rows deep-link with the latter two (shown
+  // as removable pills) so "Sligh" doesn't also match "RG Sligh".
   const [searchParams, setSearchParams] = useSearchParams()
   const query = searchParams.get("q") ?? ""
   const archetype = searchParams.get("archetype")
-  const setParams = (q: string, arch: string | null) =>
-    setSearchParams({ ...(q && { q }), ...(arch && { archetype: arch }) }, { replace: true })
-  const setQuery = (v: string) => setParams(v, archetype)
+  const player = searchParams.get("player")
+  // Merge a partial change into the current filters; empty/null values drop out.
+  const setFilters = (next: { q?: string; archetype?: string | null; player?: string | null }) =>
+    setSearchParams(
+      Object.fromEntries(Object.entries({ q: query, archetype, player, ...next }).filter(([, v]) => v)) as Record<
+        string,
+        string
+      >,
+      { replace: true },
+    )
+  const setQuery = (v: string) => setFilters({ q: v })
 
   const tab: Tab = tabParam && TAB_IDS.has(tabParam) ? (tabParam as Tab) : "meta"
 
@@ -144,12 +152,13 @@ export default function MetaPage() {
     const q = query.trim().toLowerCase()
     let list = decks
     if (archetype) list = list.filter(d => (d.archetype ?? "Other") === archetype)
+    if (player) list = list.filter(d => d.player === player)
     if (q)
       list = list.filter(
         d => (d.archetype ?? "Other").toLowerCase().includes(q) || d.player.toLowerCase().includes(q),
       )
     return list
-  }, [decks, query, archetype])
+  }, [decks, query, archetype, player])
 
   const formatName = data?.format?.name ?? format
 
@@ -204,7 +213,9 @@ export default function MetaPage() {
           query={query}
           onQuery={setQuery}
           archetype={archetype}
-          onClearArchetype={() => setParams(query, null)}
+          onClearArchetype={() => setFilters({ archetype: null })}
+          player={player}
+          onClearPlayer={() => setFilters({ player: null })}
           total={decks.length}
           format={format}
           playerCounts={playerCounts}
@@ -358,12 +369,26 @@ const searchSort = {
   date: (d: MetaDeck) => d.tournament_held_on,
 }
 
+function FilterPill({ label, value, onClear }: { label: string; value: string; onClear: () => void }) {
+  return (
+    <span className="filter-pill">
+      <span className="filter-pill-label">{label}</span>
+      {value}
+      <button type="button" aria-label={`Clear ${label.toLowerCase()} filter`} onClick={onClear}>
+        ×
+      </button>
+    </span>
+  )
+}
+
 function SearchTab({
   decks,
   query,
   onQuery,
   archetype,
   onClearArchetype,
+  player,
+  onClearPlayer,
   total,
   format,
   playerCounts,
@@ -373,6 +398,8 @@ function SearchTab({
   onQuery: (v: string) => void
   archetype: string | null
   onClearArchetype: () => void
+  player: string | null
+  onClearPlayer: () => void
   total: number
   format: string
   playerCounts: Map<number, number>
@@ -380,16 +407,10 @@ function SearchTab({
   const { sorted, sort, toggle } = useSort(decks, searchSort, { key: "placement", dir: "asc" })
   return (
     <>
-      <div className="mb-5 flex items-center gap-3 [&_.search-field]:ml-0">
+      <div className="mb-5 flex flex-wrap items-center gap-3 [&_.search-field]:ml-0 [&_.search-field]:w-96">
         <FilterInput placeholder="Search by archetype or player…" value={query} onChange={onQuery} />
-        {archetype && (
-          <span className="muted text-sm">
-            Archetype: {archetype}{" "}
-            <button type="button" aria-label="Clear archetype filter" onClick={onClearArchetype}>
-              ×
-            </button>
-          </span>
-        )}
+        {archetype && <FilterPill label="Archetype" value={archetype} onClear={onClearArchetype} />}
+        {player && <FilterPill label="Player" value={player} onClear={onClearPlayer} />}
       </div>
       {total === 0 ? (
         <p className="muted">No decks recorded yet.</p>
@@ -432,7 +453,7 @@ function SearchTab({
                   </Link>
                 </td>
                 <td>
-                  <Link to={`/${format}/search?q=${encodeURIComponent(d.player)}`}>{d.player}</Link>
+                  <Link to={`/${format}/search?player=${encodeURIComponent(d.player)}`}>{d.player}</Link>
                 </td>
                 <td className="standings-record">{record(d) ?? "—"}</td>
                 <td>
