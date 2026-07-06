@@ -799,11 +799,11 @@ main {
 .deck-price {
   @apply flex flex-col gap-6 max-w-2xl;
 }
-.deck-price-subtabs {
-  @apply mb-0;
-  .tab {
-    @apply text-sm py-1.5 px-3;
-  }
+.deck-price-modes {
+  @apply flex gap-4;
+}
+.deck-price-mode {
+  @apply flex items-center gap-2 text-sm cursor-pointer select-none;
 }
 .deck-price-total {
   @apply flex items-baseline justify-between gap-3 pb-3 border-b border-border text-base font-semibold uppercase tracking-wide text-text-dim;
@@ -843,7 +843,7 @@ main {
   @apply list-none m-0 p-0 flex flex-col;
 }
 .deck-sibling {
-  @apply flex items-baseline gap-3 py-1 rounded-md;
+  @apply flex items-baseline gap-3 py-1 px-2.5 rounded-md;
 }
 .deck-sibling.is-current {
   @apply bg-paper-raised font-semibold text-ink;
@@ -856,6 +856,12 @@ main {
 }
 .deck-sibling-player {
   @apply flex-none truncate font-normal text-text-faint;
+}
+.deck-sibling-record {
+  @apply flex-none w-14 tabular-nums text-text-faint;
+}
+.deck-sibling-date {
+  @apply ml-2 text-sm font-normal text-text-faint;
 }
 
 /* ---- tournament standings ---- */

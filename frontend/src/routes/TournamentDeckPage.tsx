@@ -2,7 +2,7 @@ import { useState } from "react"
 import { Link, useParams } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 import { useAsync } from "../lib/useAsync"
-import { formatPrice } from "../lib/format"
+import { formatDate, formatPrice } from "../lib/format"
 import type { DeckBoard, ImageUris, Prices, TournamentDeck } from "../lib/types"
 
 // The oracle-card fields a decklist row needs to render and sort.
@@ -23,11 +23,25 @@ type Entry = {
 }
 
 // A sibling decklist in the same tournament, for the standings sidebar.
-type Sibling = { id: number; player: string; archetype: string | null; placement: number | null }
+type Sibling = {
+  id: number
+  player: string
+  archetype: string | null
+  placement: number | null
+  wins: number | null
+  losses: number | null
+  draws: number | null
+}
 
 type DeckData = {
   deck: TournamentDeck & {
-    tournaments: { id: number; name: string; formats: { name: string } | null } | null
+    tournaments: {
+      id: number
+      name: string
+      held_on: string | null
+      player_count: number | null
+      formats: { name: string } | null
+    } | null
   }
   entries: Entry[]
   // card_id -> the first (earliest) printing: id for linking, url for the hover
@@ -72,7 +86,9 @@ function parseUsd(prices: Prices | null | undefined): number | null {
 async function loadDeck(deckId: string): Promise<DeckData> {
   const { data: deck, error } = await supabase
     .from("tournament_decks")
-    .select("id,tournament_id,player,archetype,placement,wins,losses,draws,tournaments(id,name,formats(name))")
+    .select(
+      "id,tournament_id,player,archetype,placement,wins,losses,draws,tournaments(id,name,held_on,player_count,formats(name))",
+    )
     .eq("id", deckId)
     .maybeSingle()
   if (error) throw error
@@ -88,7 +104,7 @@ async function loadDeck(deckId: string): Promise<DeckData> {
 
   const { data: siblings, error: sErr } = await supabase
     .from("tournament_decks")
-    .select("id,player,archetype,placement")
+    .select("id,player,archetype,placement,wins,losses,draws")
     .eq("tournament_id", deck.tournament_id)
     .order("placement", { ascending: true, nullsFirst: false })
   if (sErr) throw sErr
@@ -148,8 +164,8 @@ async function loadDeck(deckId: string): Promise<DeckData> {
 type View = "list" | "visual" | "price"
 
 const VIEWS: { key: View; label: string }[] = [
-  { key: "list", label: "List" },
   { key: "visual", label: "Visual" },
+  { key: "list", label: "List" },
   { key: "price", label: "Price" },
 ]
 
@@ -157,7 +173,7 @@ export default function TournamentDeckPage() {
   const { id = "", deckId = "", format = "" } = useParams()
   const { data, loading, error } = useAsync(() => loadDeck(deckId), [deckId])
   const [preview, setPreview] = useState<string | null>(null)
-  const [view, setView] = useState<View>("list")
+  const [view, setView] = useState<View>("visual")
 
   if (loading) {
     return (
@@ -203,10 +219,15 @@ export default function TournamentDeckPage() {
       <header className="deck-head">
         <div className="deck-head-top">
           <h2>{deck.archetype ?? `${deck.player}'s deck`}</h2>
-        </div>
-        <div className="deck-meta-row">
-          <span>{deck.player}</span>
-          {deck.placement != null && <span className="code-badge">#{deck.placement}</span>}
+          <span className="deck-head-player">{deck.player}</span>
+          {deck.placement != null && (
+            <span className="code-badge">
+              #{deck.placement}
+              {deck.tournaments?.player_count != null && (
+                <span className="deck-head-field"> / {deck.tournaments.player_count}</span>
+              )}
+            </span>
+          )}
         </div>
       </header>
 
@@ -287,14 +308,23 @@ export default function TournamentDeckPage() {
 
       {siblings.length > 1 && (
         <section className="deck-siblings">
-          <h2 className="deck-board-head">{tournamentName}</h2>
+          <h2 className="deck-board-head">
+            {tournamentName}
+            {deck.tournaments?.held_on && (
+              <span className="deck-sibling-date">{formatDate(deck.tournaments.held_on)}</span>
+            )}
+          </h2>
           <ol className="deck-sibling-list">
             {siblings.map(s => {
               const current = s.id === deck.id
               const label = s.archetype ?? "Other"
+              const record = s.wins != null || s.losses != null || s.draws != null
+                ? `${s.wins ?? 0}-${s.losses ?? 0}-${s.draws ?? 0}`
+                : null
               return (
                 <li key={s.id} className={`deck-sibling${current ? " is-current" : ""}`}>
                   <span className="deck-sibling-rank">{s.placement ?? "—"}</span>
+                  <span className="deck-sibling-record">{record}</span>
                   <span className="deck-sibling-name">
                     {current ? (
                       label
@@ -399,18 +429,17 @@ function PriceView({ entries, printings, cheapest }: {
 
   return (
     <div className="deck-price">
-      <div className="tabs deck-price-subtabs" role="tablist">
+      <div className="deck-price-modes" role="radiogroup">
         {PRICE_MODES.map(m => (
-          <button
-            key={m.key}
-            type="button"
-            role="tab"
-            aria-selected={mode === m.key}
-            className={`tab${mode === m.key ? " is-active" : ""}`}
-            onClick={() => setMode(m.key)}
-          >
+          <label key={m.key} className="deck-price-mode">
+            <input
+              type="radio"
+              name="price-mode"
+              checked={mode === m.key}
+              onChange={() => setMode(m.key)}
+            />
             {m.label}
-          </button>
+          </label>
         ))}
       </div>
       <div className="deck-price-total">
