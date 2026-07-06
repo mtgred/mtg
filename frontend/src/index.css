@@ -4,6 +4,7 @@
   --color-paper: #f3eee2;
   --color-paper-raised: #fbf8f0;
   --color-paper-sunken: #ebe4d4;
+  --color-paper-hover: #fffdf7;
   --color-border: #d8cfb8;
   --color-border-soft: #e3dac6;
   --color-border-strong: #c6ba9b;
@@ -19,6 +20,10 @@
   --color-gold-bright: #b08a2e;
   --color-danger: #a8302a;
 
+  --color-legal-bg: rgba(70, 130, 80, 0.16);
+  --color-legal-ink: #3f7a4c;
+  --color-legal-edge: rgba(70, 130, 80, 0.28);
+
   --color-rarity-common: #353318;
   --color-rarity-uncommon: #93acb9;
   --color-rarity-rare: #c18f00;
@@ -27,10 +32,12 @@
   --color-rarity-bonus: #996699;
 
   --radius-card: 12px;
+  --radius-cardface: 4.75% / 3.5%;
 
   --shadow-sm: 0 1px 2px rgba(58, 46, 24, 0.06), 0 2px 8px rgba(58, 46, 24, 0.05);
   --shadow-card: 0 8px 28px rgba(74, 58, 30, 0.14);
   --shadow-lift: 0 18px 40px rgba(74, 58, 30, 0.22);
+  --shadow-focus: 0 0 0 3px rgba(176, 138, 46, 0.16);
 
   --font-sans: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "Spline Sans Mono", ui-monospace, monospace;
@@ -205,17 +212,20 @@
     @apply text-text-faint;
   }
   &:focus {
-    @apply outline-none border-gold shadow-[0_0_0_3px_rgba(176,138,46,0.16)];
+    @apply outline-none border-gold shadow-focus;
   }
 }
 .cardsearch-input {
   @apply pr-14;
 }
-.cardsearch-hint {
+.cardsearch-hint,
+.search-hint {
   @apply absolute top-1/2 right-2 -translate-y-1/2 pointer-events-none flex items-center h-5 min-w-5 px-1.5 justify-center bg-paper-sunken border border-border rounded text-text-dim text-xs font-sans leading-none shadow-sm;
 }
 .cardsearch-input:focus ~ .cardsearch-hint,
-.cardsearch-input:not(:placeholder-shown) ~ .cardsearch-hint {
+.cardsearch-input:not(:placeholder-shown) ~ .cardsearch-hint,
+.search:focus ~ .search-hint,
+.search:not(:placeholder-shown) ~ .search-hint {
   @apply hidden;
 }
 .cardsearch-menu {
@@ -278,13 +288,6 @@ main {
 .search {
   @apply pr-7;
 }
-.search-hint {
-  @apply absolute top-1/2 right-2 -translate-y-1/2 pointer-events-none flex items-center h-5 min-w-5 px-1.5 justify-center bg-paper-sunken border border-border rounded text-text-dim text-xs font-sans leading-none shadow-sm;
-}
-.search:focus ~ .search-hint,
-.search:not(:placeholder-shown) ~ .search-hint {
-  @apply hidden;
-}
 .filter-pill {
   @apply inline-flex items-center gap-1.5 text-sm py-1 pl-3 pr-1.5 rounded-full bg-paper-sunken border border-border text-ink;
 }
@@ -327,7 +330,7 @@ main {
 .set-card {
   @apply relative flex items-center gap-3.5 p-3.5 bg-paper-raised border border-border-soft rounded-card text-text shadow-sm overflow-hidden transition-[border-color,transform,box-shadow] duration-180;
   &:hover {
-    @apply no-underline border-border-strong bg-[#fffdf7] -translate-y-0.5 shadow-card;
+    @apply no-underline border-border-strong bg-paper-hover -translate-y-0.5 shadow-card;
   }
 }
 .set-icon {
@@ -383,7 +386,7 @@ main {
   }
 }
 .card-img {
-  @apply aspect-488/680 rounded-[4.75%/3.5%] overflow-hidden bg-paper-sunken shadow-card transition-[transform,box-shadow] duration-180;
+  @apply aspect-488/680 rounded-cardface overflow-hidden bg-paper-sunken shadow-card transition-[transform,box-shadow] duration-180;
   .card-tile:hover & {
     @apply -translate-y-1.25 shadow-lift;
   }
@@ -437,7 +440,7 @@ main {
   button {
     @apply py-2 px-4.5 bg-paper-raised border border-border rounded-lg text-ink cursor-pointer font-medium shadow-sm transition-[border-color,background] duration-150;
     &:hover:not(:disabled) {
-      @apply border-gold bg-[#fffdf7];
+      @apply border-gold bg-paper-hover;
     }
     &:disabled {
       @apply opacity-40 cursor-default shadow-none;
@@ -456,7 +459,7 @@ main {
   @apply sticky top-21;
 }
 .card-figure img {
-  @apply w-full rounded-[4.75%/3.5%] shadow-lift block;
+  @apply w-full rounded-cardface shadow-lift block;
 }
 .price-row {
   @apply flex gap-2 mt-4.5;
@@ -524,7 +527,7 @@ main {
   @apply text-xs py-1 px-2.5 rounded-md font-semibold;
 }
 .legality-legal {
-  @apply bg-[rgba(70,130,80,0.16)] text-[#3f7a4c] border border-[rgba(70,130,80,0.28)];
+  @apply bg-legal-bg text-legal-ink border border-legal-edge;
 }
 .legality-not_legal, .legality-banned {
   @apply bg-paper-sunken text-text-faint border border-border;
@@ -542,7 +545,7 @@ main {
   li a {
     @apply flex items-center gap-3 py-2.5 px-4 bg-paper-raised border border-border-soft rounded-lg text-text shadow-sm transition-[border-color,background] duration-150;
     &:hover {
-      @apply no-underline border-gold bg-[#fffdf7];
+      @apply no-underline border-gold bg-paper-hover;
     }
   }
   li.current a {
@@ -585,7 +588,7 @@ main {
 .input {
   @apply py-1 px-2.5 bg-paper-raised border border-border rounded-lg text-ink shadow-sm cursor-pointer transition-[border-color,box-shadow] duration-150;
   &:focus {
-    @apply outline-none border-gold shadow-[0_0_0_3px_rgba(176,138,46,0.16)];
+    @apply outline-none border-gold shadow-focus;
   }
 }
 .btn {
@@ -637,7 +640,7 @@ main {
   @apply min-w-52;
 }
 .deck-public-tag {
-  @apply text-xs font-semibold uppercase tracking-wider py-0.5 px-1.5 rounded-md bg-[rgba(70,130,80,0.16)] text-[#3f7a4c] border border-[rgba(70,130,80,0.28)];
+  @apply text-xs font-semibold uppercase tracking-wider py-0.5 px-1.5 rounded-md bg-legal-bg text-legal-ink border border-legal-edge;
 }
 
 /* ---- deck builder ---- */
@@ -665,7 +668,7 @@ main {
     @apply bg-paper-sunken;
   }
   &:focus {
-    @apply outline-none bg-paper-raised border-gold shadow-[0_0_0_3px_rgba(176,138,46,0.16)];
+    @apply outline-none bg-paper-raised border-gold shadow-focus;
   }
 }
 .deck-meta-row {
@@ -683,7 +686,7 @@ main {
     @apply text-text-faint;
   }
   &:focus {
-    @apply outline-none border-gold shadow-[0_0_0_3px_rgba(176,138,46,0.16)];
+    @apply outline-none border-gold shadow-focus;
   }
 }
 .deck-description-text {
@@ -742,7 +745,7 @@ main {
   @apply sticky top-4 aspect-[63/88];
 }
 .deck-preview-img {
-  @apply w-full rounded-[4.75%/3.5%] shadow-2xl;
+  @apply w-full rounded-cardface shadow-2xl;
 }
 .deck-board {
   @apply flex flex-col gap-2;
@@ -793,7 +796,7 @@ main {
 .icon-btn {
   @apply inline-flex items-center justify-center w-6 h-6 flex-none rounded-md border border-border-soft bg-paper-raised text-text-dim cursor-pointer leading-none text-base;
   &:hover {
-    @apply border-gold text-ink bg-[#fffdf7];
+    @apply border-gold text-ink bg-paper-hover;
   }
   &:disabled {
     @apply opacity-40 cursor-default;
