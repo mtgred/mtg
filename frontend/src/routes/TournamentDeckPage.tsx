@@ -2,7 +2,7 @@ import { useState } from "react"
 import { Link, useParams } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 import { useAsync } from "../lib/useAsync"
-import { formatDate, formatPrice } from "../lib/format"
+import { formatDate, formatPrice, formatTix } from "../lib/format"
 import type { DeckBoard, ImageUris, Prices, TournamentDeck } from "../lib/types"
 
 // The oracle-card fields a decklist row needs to render and sort.
@@ -45,8 +45,8 @@ type DeckData = {
   }
   entries: Entry[]
   // card_id -> the first (earliest) printing: id for linking, url for the hover
-  // preview, usd for first-printing pricing.
-  printings: Record<number, { id: string; url?: string; usd: number | null }>
+  // preview, usd for first-printing pricing, tix for MTGO pricing.
+  printings: Record<number, { id: string; url?: string; usd: number | null; tix: number | null }>
   // card_id -> the cheapest printing (id for linking, usd) for "cheapest" pricing.
   cheapest: Record<number, { id: string; usd: number | null }>
   // Every deck in this tournament, ranked, including the one shown.
@@ -77,9 +77,9 @@ function isBasicLand(typeLine: string | null | undefined): boolean {
   return (typeLine ?? "").includes("Basic")
 }
 
-// Nonfoil USD price of a printing as a number, or null when it carries no price.
-function parseUsd(prices: Prices | null | undefined): number | null {
-  const n = prices?.usd != null ? Number(prices.usd) : NaN
+// A Scryfall price string as a number, or null when absent/unparseable.
+function parseNum(value: string | null | undefined): number | null {
+  const n = value != null ? Number(value) : NaN
   return Number.isNaN(n) ? null : n
 }
 
@@ -141,11 +141,12 @@ async function loadDeck(deckId: string): Promise<DeckData> {
       printings[row.card_id] = {
         id: row.id,
         url: row.image_uris?.normal ?? row.image_uris?.large ?? row.image_uris?.small,
-        usd: parseUsd(row.prices),
+        usd: parseNum(row.prices?.usd),
+        tix: parseNum(row.prices?.tix),
       }
     }
     for (const row of (cheap ?? []) as unknown as { id: string; card_id: number; prices: Prices | null }[]) {
-      cheapest[row.card_id] = { id: row.id, usd: parseUsd(row.prices) }
+      cheapest[row.card_id] = { id: row.id, usd: parseNum(row.prices?.usd) }
     }
   }
 
@@ -224,12 +225,13 @@ export default function TournamentDeckPage() {
           </Link>
           {deck.placement != null && (
             <span className="code-badge">
-              #{deck.placement}
-              {deck.tournaments?.player_count != null && (
-                <span className="deck-head-field"> / {deck.tournaments.player_count}</span>
-              )}
-            </span>
-          )}
+              Rank {deck.placement}
+              {deck.tournaments?.player_count != null && (<span>/{deck.tournaments.player_count}</span>)}
+            </span>)}
+          {(deck.wins != null || deck.losses != null || deck.draws != null) && (
+            <span className="deck-head-record">
+              {deck.wins ?? 0}-{deck.losses ?? 0}-{deck.draws ?? 0}
+            </span>)}
         </div>
       </header>
 
@@ -328,9 +330,7 @@ export default function TournamentDeckPage() {
                   <span className="deck-sibling-rank">{s.placement ?? "—"}</span>
                   <span className="deck-sibling-record">{record}</span>
                   <span className="deck-sibling-name">
-                    {current ? (
-                      label
-                    ) : (
+                    {current ? label : (
                       <Link to={`/${format || "modern"}/tournaments/${deck.tournament_id}/decks/${s.id}`}>
                         {label}
                       </Link>
@@ -364,7 +364,13 @@ function BoardSection({ label, entries, printings, onEnter, onLeave }: {
     cat,
     rows: entries
       .filter(e => categoryOf(e.cards?.type_line) === cat)
-      .sort((a, b) => (a.cards?.cmc ?? 0) - (b.cards?.cmc ?? 0) || (a.cards?.name ?? "").localeCompare(b.cards?.name ?? "")),
+      // Basic lands sort to the end of their group; otherwise by mana value, name.
+      .sort(
+        (a, b) =>
+          Number(isBasicLand(a.cards?.type_line)) - Number(isBasicLand(b.cards?.type_line)) ||
+          (a.cards?.cmc ?? 0) - (b.cards?.cmc ?? 0) ||
+          (a.cards?.name ?? "").localeCompare(b.cards?.name ?? ""),
+      ),
   })).filter(g => g.rows.length > 0)
 
   return (
@@ -402,12 +408,19 @@ function BoardSection({ label, entries, printings, onEnter, onLeave }: {
   )
 }
 
-type PriceMode = "first" | "cheapest"
+type PriceMode = "first" | "cheapest" | "mtgo"
 
 const PRICE_MODES: { key: PriceMode; label: string }[] = [
   { key: "cheapest", label: "Cheapest" },
   { key: "first", label: "First printing" },
+  { key: "mtgo", label: "MTGO" },
 ]
+
+const PRICE_TOTAL_LABEL: Record<PriceMode, string> = {
+  cheapest: "Cheapest deck price",
+  first: "First-printing deck price",
+  mtgo: "MTGO deck price",
+}
 
 function PriceView({ entries, printings, cheapest }: {
   entries: Entry[]
@@ -415,7 +428,10 @@ function PriceView({ entries, printings, cheapest }: {
   cheapest: DeckData["cheapest"]
 }) {
   const [mode, setMode] = useState<PriceMode>("cheapest")
-  const source = mode === "first" ? printings : cheapest
+  // Cheapest reads its own source; first-printing and MTGO both read the default
+  // printing (usd vs. tix respectively).
+  const source = mode === "cheapest" ? cheapest : printings
+  const fmt = (n: number | null) => (n == null ? null : mode === "mtgo" ? formatTix(String(n)) : formatPrice(String(n)))
 
   const boards = BOARDS.map(b => ({
     label: b.label,
@@ -424,7 +440,11 @@ function PriceView({ entries, printings, cheapest }: {
       .sort((a, b) => (a.cards?.cmc ?? 0) - (b.cards?.cmc ?? 0) || (a.cards?.name ?? "").localeCompare(b.cards?.name ?? "")),
   })).filter(b => b.rows.length > 0)
 
-  const priceOf = (e: Entry) => !e.cards || isBasicLand(e.cards.type_line) ? null : source[e.cards.id]?.usd ?? null
+  const priceOf = (e: Entry) => {
+    if (!e.cards || isBasicLand(e.cards.type_line)) return null
+    if (mode === "mtgo") return printings[e.cards.id]?.tix ?? null
+    return source[e.cards.id]?.usd ?? null
+  }
   const linkFor = (e: Entry) => (e.cards ? source[e.cards.id]?.id ?? printings[e.cards.id]?.id ?? "" : "")
   const boardTotal = (rows: Entry[]) => rows.reduce((n, e) => n + (priceOf(e) ?? 0) * e.quantity, 0)
   const deckTotal = boards.reduce((n, b) => n + boardTotal(b.rows), 0)
@@ -447,14 +467,14 @@ function PriceView({ entries, printings, cheapest }: {
         ))}
       </div>
       <div className="deck-price-total">
-        <span>{mode === "first" ? "First-printing deck price" : "Cheapest deck price"}</span>
-        <span className="deck-price-total-value">{formatPrice(String(deckTotal))}</span>
+        <span>{PRICE_TOTAL_LABEL[mode]}</span>
+        <span className="deck-price-total-value">{fmt(deckTotal)}</span>
       </div>
       {missing && <p className="muted deck-price-note">Some cards have no market price and are counted as $0.</p>}
       {boards.map(b => (
         <section key={b.label} className="deck-price-board">
           <h2 className="deck-board-head">
-            {b.label} <span className="deck-board-count">{formatPrice(String(boardTotal(b.rows)))}</span>
+            {b.label} <span className="deck-board-count">{fmt(boardTotal(b.rows))}</span>
           </h2>
           <table className="deck-price-table">
             <tbody>
@@ -467,8 +487,8 @@ function PriceView({ entries, printings, cheapest }: {
                     <td className="deck-price-name">
                       {e.cards ? <Link to={`/cards/${linkFor(e)}`}>{e.cards.name}</Link> : "Unknown card"}
                     </td>
-                    <td className="deck-price-unit">{formatPrice(unit != null ? String(unit) : null) ?? "—"}</td>
-                    <td className="deck-price-line">{formatPrice(line != null ? String(line) : null) ?? "—"}</td>
+                    <td className="deck-price-unit">{fmt(unit) ?? "—"}</td>
+                    <td className="deck-price-line">{fmt(line) ?? "—"}</td>
                   </tr>
                 )
               })}
@@ -486,32 +506,70 @@ function VisualBoard({ label, entries, printings }: {
   printings: DeckData["printings"]
 }) {
   const total = entries.reduce((n, e) => n + e.quantity, 0)
-  const rows = [...entries].sort((a, b) => (a.cards?.cmc ?? 0) - (b.cards?.cmc ?? 0) || (a.cards?.name ?? "").localeCompare(b.cards?.name ?? ""))
+  const byManaThenName = (a: Entry, b: Entry) =>
+    (a.cards?.cmc ?? 0) - (b.cards?.cmc ?? 0) || (a.cards?.name ?? "").localeCompare(b.cards?.name ?? "")
+  const spells = entries.filter(e => categoryOf(e.cards?.type_line) !== "Land").sort(byManaThenName)
+  // Nonbasic lands first, basics at the end.
+  const lands = entries
+    .filter(e => categoryOf(e.cards?.type_line) === "Land")
+    .sort(
+      (a, b) =>
+        Number(isBasicLand(a.cards?.type_line)) - Number(isBasicLand(b.cards?.type_line)) || byManaThenName(a, b),
+    )
 
   return (
     <section className="deck-visual-board">
       <h2 className="deck-board-head">
         {label} <span className="deck-board-count">{total}</span>
       </h2>
-      <ul className="deck-visual-grid">
-        {rows.map(entry => {
-          const printing = entry.cards ? printings[entry.cards.id] : undefined
-          return (
-            <li className="deck-visual-card" key={entry.id}>
-              <Link to={`/cards/${printing?.id ?? ""}`} className="card-tile">
-                <div className="card-img">
-                  {printing ? (
-                    <img src={printing.url} alt={entry.cards?.name ?? ""} loading="lazy" />
-                  ) : (
-                    <div className="card-img-fallback">{entry.cards?.name ?? "Unknown card"}</div>
-                  )}
-                </div>
-              </Link>
-              {entry.quantity > 1 && <span className="deck-visual-qty">{entry.quantity}</span>}
-            </li>
-          )
-        })}
-      </ul>
+      <VisualGrid entries={spells} printings={printings} />
+      {lands.length > 0 && (
+        <>
+          <p className="deck-cat-head">Lands ({lands.reduce((n, e) => n + e.quantity, 0)})</p>
+          {/* Split high-count lands (basics) into separate stacks of four. */}
+          <VisualGrid entries={lands} printings={printings} maxPerStack={4} />
+        </>
+      )}
     </section>
+  )
+}
+
+// A grid of fanned card stacks — one card image per copy, offset downward so
+// each title peeks out. Copies beyond maxPerStack spill into further stacks.
+function VisualGrid({
+  entries,
+  printings,
+  maxPerStack = Infinity,
+}: {
+  entries: Entry[]
+  printings: DeckData["printings"]
+  maxPerStack?: number
+}) {
+  return (
+    <ul className="deck-visual-grid">
+      {entries.flatMap(entry => {
+        const printing = entry.cards ? printings[entry.cards.id] : undefined
+        // Split the copies into stacks of at most maxPerStack cards each.
+        const stacks: number[] = []
+        for (let left = entry.quantity; left > 0; left -= maxPerStack) stacks.push(Math.min(maxPerStack, left))
+        return stacks.map((count, s) => (
+          <li className="deck-visual-card" key={`${entry.id}-${s}`}>
+            <div className="deck-visual-stack">
+              {Array.from({ length: count }, (_, i) => (
+                <Link key={i} to={`/cards/${printing?.id ?? ""}`} className="card-tile deck-visual-copy">
+                  <div className="card-img">
+                    {printing ? (
+                      <img src={printing.url} alt={entry.cards?.name ?? ""} loading="lazy" />
+                    ) : (
+                      <div className="card-img-fallback">{entry.cards?.name ?? "Unknown card"}</div>
+                    )}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </li>
+        ))
+      })}
+    </ul>
   )
 }

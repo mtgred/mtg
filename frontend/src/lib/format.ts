@@ -26,6 +26,13 @@ export function formatPrice(usd: string | null | undefined): string | null {
   return `$${n.toFixed(2)}`
 }
 
+export function formatTix(tix: string | null | undefined): string | null {
+  if (!tix) return null
+  const n = Number(tix)
+  if (Number.isNaN(n)) return null
+  return `${n.toFixed(2)} tix`
+}
+
 function money(value: string | null | undefined, symbol: string): string | null {
   if (!value) return null
   const n = Number(value)

@@ -656,6 +656,9 @@ main {
 .deck-head-field {
   @apply text-text-faint;
 }
+.deck-head-record {
+  @apply font-mono text-sm text-text-dim tabular-nums;
+}
 .deck-name-input {
   @apply flex-1 min-w-48 py-1 px-2 -mx-2 bg-transparent border border-transparent rounded-lg text-ink font-semibold tracking-tight text-[clamp(1.4rem,1.4rem+1vw,2rem)];
   &:hover {
@@ -807,14 +810,18 @@ main {
   @apply flex flex-col gap-3;
 }
 .deck-visual-grid {
-  @apply list-none m-0 p-0 grid gap-3 grid-cols-[repeat(auto-fill,minmax(140px,1fr))];
+  @apply list-none m-0 p-0 grid gap-3 grid-cols-[repeat(auto-fill,minmax(140px,1fr))] items-start;
 }
-.deck-visual-card {
-  @apply relative;
+.deck-visual-stack {
+  @apply flex flex-col;
 }
-.deck-visual-qty {
-  @apply absolute top-1.5 right-1.5 min-w-6 h-6 px-1.5 inline-flex items-center justify-center rounded-full text-paper text-xs font-bold tabular-nums shadow-card pointer-events-none;
-  background: color-mix(in srgb, var(--color-ink) 88%, transparent);
+.deck-visual-copy:not(:first-child) {
+  @apply mt-[-114%];
+}
+/* Suppress the shared card-tile hover entirely: no lift, no shadow change, and
+   no z-index raise — a hovered copy stays under the copies stacked on top of it. */
+.deck-visual-copy:hover .card-img {
+  @apply translate-none shadow-card outline-3 outline-orange-500;
 }
 
 .deck-price {
@@ -861,7 +868,7 @@ main {
   @apply mt-4 pt-4 border-t border-border-soft flex flex-col gap-2;
 }
 .deck-sibling-list {
-  @apply list-none m-0 p-0 flex flex-col;
+  @apply list-none m-0 p-0 flex flex-col lg:max-w-1/2 md:max-w-2/3;
 }
 .deck-sibling {
   @apply flex items-baseline gap-3 py-1 px-2.5 rounded-md;
@@ -870,7 +877,7 @@ main {
   @apply bg-paper-raised font-semibold text-ink;
 }
 .deck-sibling-rank {
-  @apply w-5 flex-none text-text-faint tabular-nums;
+  @apply w-5 flex-none text-text-faint tabular-nums font-bold text-right;
 }
 .deck-sibling-name {
   @apply flex-1 min-w-0 truncate;
@@ -879,7 +886,7 @@ main {
   @apply flex-none truncate font-normal text-text-faint;
 }
 .deck-sibling-record {
-  @apply flex-none w-14 tabular-nums text-text-faint;
+  @apply flex-none w-14 tabular-nums text-text-faint text-right;
 }
 .deck-sibling-date {
   @apply ml-2 text-sm font-normal text-text-faint;

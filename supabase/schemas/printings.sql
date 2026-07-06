@@ -34,7 +34,11 @@ CREATE TABLE printings (
 -- (which also has an embalm-token printing under the same oracle id) links to the
 -- actual card and never to a token. Lets oracle-level references (e.g. decklists)
 -- fetch art + a linkable printing id with a single row per card, instead of
--- pulling every printing and hitting the API row cap. Read-only.
+-- pulling every printing and hitting the API row cap. Token sets, promo prints,
+-- and foil-only prints are excluded so the representative print is a normal
+-- nonfoil release; Limited Edition Alpha is deprioritized so its cards resolve to
+-- the (visually identical) Beta printing, which every Alpha card was reprinted
+-- in. Read-only.
 CREATE VIEW card_default_printings AS
 SELECT DISTINCT ON (p.card_id)
   p.card_id,
@@ -43,8 +47,8 @@ SELECT DISTINCT ON (p.card_id)
   p.prices
 FROM printings p
 JOIN sets s ON s.id = p.set_id
-WHERE s.set_type <> 'token'
-ORDER BY p.card_id, p.released_at ASC NULLS LAST, p.collector_number ASC;
+WHERE s.set_type <> 'token' AND p.promo IS NOT TRUE AND 'nonfoil' = ANY(p.finishes)
+ORDER BY p.card_id, (s.code = 'lea'), p.released_at ASC NULLS LAST, p.collector_number ASC;
 
 -- The cheapest printing per oracle card: the non-token printing with the lowest
 -- nonfoil USD price (printings without a USD price are excluded, so a card only

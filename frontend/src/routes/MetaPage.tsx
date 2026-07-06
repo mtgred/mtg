@@ -109,10 +109,7 @@ export default function MetaPage() {
   // Merge a partial change into the current filters; empty/null values drop out.
   const setFilters = (next: { q?: string; archetype?: string | null; player?: string | null }) =>
     setSearchParams(
-      Object.fromEntries(Object.entries({ q: query, archetype, player, ...next }).filter(([, v]) => v)) as Record<
-        string,
-        string
-      >,
+      Object.fromEntries(Object.entries({ q: query, archetype, player, ...next }).filter(([, v]) => v)) as Record< string, string >,
       { replace: true },
     )
   const setQuery = (v: string) => setFilters({ q: v })
@@ -178,7 +175,7 @@ export default function MetaPage() {
   return (
     <div className="page">
       <header className="page-head">
-        <h1>{formatName} Meta</h1>
+        <h1>{formatName}</h1>
       </header>
 
       <div className="tabs" role="tablist">
@@ -225,12 +222,7 @@ export default function MetaPage() {
   )
 }
 
-function MetaTab({
-  archetypes,
-  total,
-  formatName,
-  format,
-}: {
+function MetaTab({ archetypes, total, formatName, format }: {
   archetypes: { name: string; count: number; wins: number; games: number }[]
   total: number
   formatName: string
@@ -421,7 +413,7 @@ function SearchTab({
           <thead>
             <tr>
               <SortTh col="placement" sort={sort} toggle={toggle} className="standings-rank standings-record">
-                #
+                Rank
               </SortTh>
               <SortTh col="archetype" sort={sort} toggle={toggle}>
                 Deck

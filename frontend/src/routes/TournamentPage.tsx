@@ -124,7 +124,7 @@ export default function TournamentPage() {
         <table className="standings">
           <thead>
             <tr>
-              <th className="standings-rank">#</th>
+              <th className="standings-rank">Rank</th>
               <th>Deck</th>
               <th>Player</th>
               <th className="standings-record">Record</th>
