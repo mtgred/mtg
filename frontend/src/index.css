@@ -862,10 +862,10 @@ main {
 .standings {
   @apply w-full border-collapse;
   th {
-    @apply text-left font-semibold text-text-dim uppercase text-xs tracking-wider py-2 px-3 border-b border-border;
+    @apply text-left font-semibold text-text-dim uppercase text-xs tracking-wider py-1.5 px-3 border-b border-border;
   }
   td {
-    @apply py-2 px-3 border-b border-border-soft;
+    @apply py-1.5 px-3 border-b border-border-soft;
   }
   tbody tr:hover {
     @apply bg-paper-raised;

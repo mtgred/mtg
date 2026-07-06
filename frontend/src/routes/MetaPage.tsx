@@ -15,8 +15,12 @@ type MetaDeck = {
   archetype: string | null
   archetype_id: number | null
   placement: number | null
+  wins: number | null
+  losses: number | null
+  draws: number | null
   tournament_id: number
   tournament_name: string | null
+  tournament_held_on: string | null
 }
 
 type MetaTournament = {
@@ -48,7 +52,9 @@ async function loadMeta(format: string): Promise<MetaData> {
   // the archetype breakdown and the deck search.
   const { data: decks, error: dErr } = await supabase
     .from("meta_decks")
-    .select("id,player,archetype,archetype_id,placement,tournament_id,tournament_name")
+    .select(
+      "id,player,archetype,archetype_id,placement,wins,losses,draws,tournament_id,tournament_name,tournament_held_on",
+    )
     .eq("format", format)
     .order("placement", { ascending: true, nullsFirst: false })
   if (dErr) throw dErr
@@ -69,6 +75,12 @@ const TABS: { id: Tab; label: string }[] = [
 const TAB_IDS = new Set<string>(TABS.map(t => t.id))
 const NO_DECKS: MetaDeck[] = []
 
+// A deck's match record as "w–l" (with draws appended), or null when unrecorded.
+function record(d: MetaDeck): string | null {
+  if (d.wins == null && d.losses == null && d.draws == null) return null
+  return [d.wins ?? 0, d.losses ?? 0, d.draws ?? 0].join("–")
+}
+
 // Path for a tab within a format: /:format for Meta, /:format/:tab otherwise.
 const tabPath = (format: string, id: Tab) => (id === "meta" ? `/${format}` : `/${format}/${id}`)
 
@@ -87,12 +99,13 @@ export default function MetaPage() {
 
   // Archetype share across every finish, best placement broken out.
   const archetypes = useMemo(() => {
-    const map = new Map<string, { name: string; count: number; best: number | null }>()
+    const map = new Map<string, { name: string; count: number; wins: number; games: number }>()
     for (const d of decks) {
-      const name = d.archetype ?? "Unknown"
-      const e = map.get(name) ?? { name, count: 0, best: null }
+      const name = d.archetype ?? "Other"
+      const e = map.get(name) ?? { name, count: 0, wins: 0, games: 0 }
       e.count++
-      if (d.placement != null && (e.best == null || d.placement < e.best)) e.best = d.placement
+      e.wins += d.wins ?? 0
+      e.games += (d.wins ?? 0) + (d.losses ?? 0) + (d.draws ?? 0)
       map.set(name, e)
     }
     return [...map.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
@@ -104,11 +117,18 @@ export default function MetaPage() {
     return m
   }, [decks])
 
+  // tournament_id -> player_count, for showing "placement/players" in search.
+  const playerCounts = useMemo(() => {
+    const m = new Map<number, number>()
+    for (const t of data?.tournaments ?? []) if (t.player_count != null) m.set(t.id, t.player_count)
+    return m
+  }, [data])
+
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return decks
     return decks.filter(
-      d => (d.archetype ?? "").toLowerCase().includes(q) || d.player.toLowerCase().includes(q),
+      d => (d.archetype ?? "Other").toLowerCase().includes(q) || d.player.toLowerCase().includes(q),
     )
   }, [decks, query])
 
@@ -130,9 +150,7 @@ export default function MetaPage() {
   return (
     <div className="page">
       <header className="page-head">
-        <h1>
-          {formatName} Meta <span className="page-head-count">{decks.length ? decks.length.toLocaleString() : ""}</span>
-        </h1>
+        <h1>{formatName} Meta</h1>
       </header>
 
       <div className="tabs" role="tablist">
@@ -162,7 +180,14 @@ export default function MetaPage() {
         <TournamentsTab tournaments={data.tournaments} counts={deckCounts} format={format} />
       )}
       {data && tab === "search" && (
-        <SearchTab decks={matches} query={query} onQuery={setQuery} total={decks.length} format={format} />
+        <SearchTab
+          decks={matches}
+          query={query}
+          onQuery={setQuery}
+          total={decks.length}
+          format={format}
+          playerCounts={playerCounts}
+        />
       )}
     </div>
   )
@@ -174,37 +199,60 @@ function MetaTab({
   formatName,
   format,
 }: {
-  archetypes: { name: string; count: number; best: number | null }[]
+  archetypes: { name: string; count: number; wins: number; games: number }[]
   total: number
   formatName: string
   format: string
 }) {
-  if (total === 0) return <p className="muted">No decks recorded for {formatName} yet.</p>
   return (
-    <ul className="meta-archetypes">
-      {archetypes.map(a => {
-        const share = Math.round((a.count / total) * 100)
-        return (
-          <li className="meta-arch" key={a.name}>
-            <div className="meta-arch-head">
-              <Link className="meta-arch-name" to={`/${format}/search?q=${encodeURIComponent(a.name)}`}>
-                {a.name}
-              </Link>
-              <span className="meta-arch-share">{share}%</span>
-            </div>
-            <div className="meta-arch-bar">
-              <span style={{ width: `${share}%` }} />
-            </div>
-            <div className="meta-arch-meta">
-              <span>
-                {a.count} {a.count === 1 ? "deck" : "decks"}
-              </span>
-              {a.best != null && <span>Best #{a.best}</span>}
-            </div>
-          </li>
-        )
-      })}
-    </ul>
+    <>
+      {total === 0 ? (
+        <p className="muted">No decks recorded for {formatName} yet.</p>
+      ) : (
+        <MetaList archetypes={archetypes} total={total} format={format} />
+      )}
+      <p className="mt-5 text-sm">
+        <Link to={`/${format}/archetypes`}>Archetype classifier rules →</Link>
+      </p>
+    </>
+  )
+}
+
+function MetaList({
+  archetypes,
+  total,
+  format,
+}: {
+  archetypes: { name: string; count: number; wins: number; games: number }[]
+  total: number
+  format: string
+}) {
+  return (
+    <table className="standings">
+      <thead>
+        <tr>
+          <th>Archetype</th>
+          <th className="standings-record">Decks</th>
+          <th className="standings-record">Share</th>
+          <th className="standings-record">Win rate</th>
+        </tr>
+      </thead>
+      <tbody>
+        {archetypes.map(a => {
+          const share = ((a.count / total) * 100).toFixed(1)
+          return (
+            <tr key={a.name}>
+              <td>
+                <Link to={`/${format}/search?q=${encodeURIComponent(a.name)}`}>{a.name}</Link>
+              </td>
+              <td className="standings-record">{a.count}</td>
+              <td className="standings-record">{share}%</td>
+              <td className="standings-record">{a.games > 0 ? `${((a.wins / a.games) * 100).toFixed(1)}%` : "—"}</td>
+            </tr>
+          )
+        })}
+      </tbody>
+    </table>
   )
 }
 
@@ -253,12 +301,14 @@ function SearchTab({
   onQuery,
   total,
   format,
+  playerCounts,
 }: {
   decks: MetaDeck[]
   query: string
   onQuery: (v: string) => void
   total: number
   format: string
+  playerCounts: Map<number, number>
 }) {
   return (
     <>
@@ -276,22 +326,29 @@ function SearchTab({
               <th className="standings-rank">#</th>
               <th>Deck</th>
               <th>Player</th>
+              <th className="standings-record">Record</th>
               <th>Tournament</th>
+              <th>Date</th>
             </tr>
           </thead>
           <tbody>
             {decks.map(d => (
               <tr key={d.id}>
-                <td className="standings-rank">{d.placement ?? "—"}</td>
+                <td className="standings-rank">
+                  {d.placement ?? "—"}
+                  {playerCounts.has(d.tournament_id) && `/${playerCounts.get(d.tournament_id)}`}
+                </td>
                 <td>
                   <Link to={`/${format}/tournaments/${d.tournament_id}/decks/${d.id}`}>
-                    {d.archetype ?? "Decklist"}
+                    {d.archetype ?? "Other"}
                   </Link>
                 </td>
                 <td>{d.player}</td>
+                <td className="standings-record">{record(d) ?? "—"}</td>
                 <td>
                   <Link to={`/${format}/tournaments/${d.tournament_id}`}>{d.tournament_name ?? "—"}</Link>
                 </td>
+                <td>{d.tournament_held_on ? formatDate(d.tournament_held_on) : "—"}</td>
               </tr>
             ))}
           </tbody>

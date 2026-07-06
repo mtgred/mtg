@@ -60,9 +60,7 @@ async function loadTournament(id: string): Promise<TournamentData> {
 
 function record(d: TournamentDeck): string | null {
   if (d.wins == null && d.losses == null && d.draws == null) return null
-  const parts = [d.wins ?? 0, d.losses ?? 0]
-  if (d.draws) parts.push(d.draws)
-  return parts.join("–")
+  return [d.wins ?? 0, d.losses ?? 0, d.draws ?? 0].join("–")
 }
 
 export default function TournamentPage() {
@@ -93,9 +91,9 @@ export default function TournamentPage() {
   return (
     <div className="page">
       <p className="crumbs">
-        <Link to={`/${formatCode || "modern"}/tournaments`}>
-          {format ? `${format.name} Tournaments` : "Tournaments"}
-        </Link>{" "}
+        <Link to={`/${formatCode || "modern"}`}>{format?.name ?? "Format"}</Link>{" "}
+        <span className="sep">/</span>{" "}
+        <Link to={`/${formatCode || "modern"}/tournaments`}>Tournaments</Link>{" "}
         <span className="sep">/</span> <span>{tournament.name}</span>
       </p>
 
@@ -127,8 +125,8 @@ export default function TournamentPage() {
           <thead>
             <tr>
               <th className="standings-rank">#</th>
-              <th>Player</th>
               <th>Deck</th>
+              <th>Player</th>
               <th className="standings-record">Record</th>
             </tr>
           </thead>
@@ -139,16 +137,16 @@ export default function TournamentPage() {
               return (
                 <tr key={s.id}>
                   <td className="standings-rank">{s.placement ?? "—"}</td>
-                  <td>{s.player}</td>
                   <td>
                     {cardCount > 0 ? (
                       <Link to={`/${formatCode || "modern"}/tournaments/${tournament.id}/decks/${s.id}`}>
-                        {s.archetype ?? "Decklist"}
+                        {s.archetype ?? "Other"}
                       </Link>
                     ) : (
                       <span>{s.archetype ?? "—"}</span>
                     )}
                   </td>
+                  <td>{s.player}</td>
                   <td className="standings-record">{rec ?? "—"}</td>
                 </tr>
               )

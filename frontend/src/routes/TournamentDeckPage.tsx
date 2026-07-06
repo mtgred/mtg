@@ -93,6 +93,15 @@ async function loadDeck(deckId: string): Promise<DeckData> {
     .order("placement", { ascending: true, nullsFirst: false })
   if (sErr) throw sErr
 
+  // Classifier-resolved archetype per deck (falls back to the reported label
+  // inside the view); mirrors TournamentPage. See supabase/schemas/archetypes.sql.
+  const { data: labels, error: aErr } = await supabase
+    .from("meta_decks")
+    .select("id,archetype")
+    .eq("tournament_id", deck.tournament_id)
+  if (aErr) throw aErr
+  const archetypes = new Map((labels ?? []).map(l => [l.id as number, l.archetype as string | null]))
+
   // Oracle cards have no art, so grab one representative printing per card from
   // the card_default_printings view (one row per card, so it stays under the API
   // row cap). Keep the printing id for linking even when it carries no image.
@@ -125,11 +134,14 @@ async function loadDeck(deckId: string): Promise<DeckData> {
   }
 
   return {
-    deck: deck as unknown as DeckData["deck"],
+    deck: { ...(deck as unknown as DeckData["deck"]), archetype: archetypes.get(deck.id) ?? deck.archetype },
     entries: rows,
     printings,
     cheapest,
-    siblings: (siblings ?? []) as unknown as Sibling[],
+    siblings: ((siblings ?? []) as unknown as Sibling[]).map(s => ({
+      ...s,
+      archetype: archetypes.get(s.id) ?? s.archetype,
+    })),
   }
 }
 
@@ -181,12 +193,11 @@ export default function TournamentDeckPage() {
   return (
     <div className="page deck-page">
       <p className="crumbs">
-        <Link to={`/${format || "modern"}/tournaments`}>
-          {deck.tournaments?.formats?.name ? `${deck.tournaments.formats.name} Tournaments` : "Tournaments"}
-        </Link>{" "}
+        <Link to={`/${format || "modern"}`}>{deck.tournaments?.formats?.name ?? "Format"}</Link>{" "}
         <span className="sep">/</span>{" "}
-        <Link to={`/${format || "modern"}/tournaments/${deck.tournament_id}`}>{tournamentName}</Link>{" "}
-        <span className="sep">/</span> <span>{deck.player}</span>
+        <Link to={`/${format || "modern"}/tournaments`}>Tournaments</Link>{" "}
+        <span className="sep">/</span>{" "}
+        <Link to={`/${format || "modern"}/tournaments/${deck.tournament_id}`}>{tournamentName}</Link>
       </p>
 
       <header className="deck-head">
@@ -280,7 +291,7 @@ export default function TournamentDeckPage() {
           <ol className="deck-sibling-list">
             {siblings.map(s => {
               const current = s.id === deck.id
-              const label = s.archetype ?? s.player
+              const label = s.archetype ?? "Other"
               return (
                 <li key={s.id} className={`deck-sibling${current ? " is-current" : ""}`}>
                   <span className="deck-sibling-rank">{s.placement ?? "—"}</span>
