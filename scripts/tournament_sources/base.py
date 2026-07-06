@@ -73,8 +73,15 @@ class Tournament:
 class Source(Protocol):
     name: str
 
-    def fetch(self, since: date | None) -> Iterable[Tournament]:
-        """Yield tournaments held on/after ``since`` (None = source's default window)."""
+    def fetch(self, since: date | None, formats: set[str] | None = None) -> Iterable[Tournament]:
+        """Yield tournaments held on/after ``since`` (None = source's default window).
+
+        ``formats`` is the set of requested ``formats.code`` values (lowercased,
+        from ``--format``), or None for all. Sources that can cheaply narrow their
+        crawl by format (e.g. mtgdecks scans one page tree per format) should
+        honor it; those that discover the format only per event may ignore it —
+        the caller filters the yielded stream by ``formats`` regardless.
+        """
         ...
 
 

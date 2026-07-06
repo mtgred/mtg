@@ -149,8 +149,12 @@ def _player_count(data: dict) -> int | None:
     return int(pc) if pc not in (None, "") else None
 
 
-def fetch(since: date | None):
-    """Yield published MTGO events from ``since``'s month through today."""
+def fetch(since: date | None, formats: set[str] | None = None):
+    """Yield published MTGO events from ``since``'s month through today.
+
+    ``formats`` is discovered only per event here, so it's ignored — the caller
+    filters the yielded stream.
+    """
     today = date.today()
     cursor = (since or today.replace(day=1)).replace(day=1)
     months = []

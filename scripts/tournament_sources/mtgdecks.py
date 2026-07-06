@@ -178,12 +178,22 @@ def _list_rows(path: str, page: int, today: date) -> list[tuple[str, str, date |
     return out
 
 
-def fetch(since: date | None):
-    """Yield mtgdecks.net events held on/after ``since`` (default: the last week)."""
+def fetch(since: date | None, formats: set[str] | None = None):
+    """Yield mtgdecks.net events held on/after ``since`` (default: the last week).
+
+    ``formats`` (a set of ``formats.code`` values from ``--format``) narrows the
+    crawl to the matching site paths, so a Premodern-only run doesn't scan all 13
+    formats. MTGDECKS_FORMATS still overrides with explicit site paths.
+    """
     today = date.today()
     start = since or today - timedelta(days=DEFAULT_DAYS)
     env = os.environ.get("MTGDECKS_FORMATS")
-    paths = [p.strip() for p in env.split(",")] if env else list(FORMATS)
+    if env:
+        paths = [p.strip() for p in env.split(",")]
+    elif formats:
+        paths = [p for p, code in FORMATS.items() if code in formats]
+    else:
+        paths = list(FORMATS)
     unknown = [p for p in paths if p not in FORMATS]
     if unknown:
         raise SystemExit(f"MTGDECKS_FORMATS: unknown format path(s) {unknown}; known: {', '.join(FORMATS)}")

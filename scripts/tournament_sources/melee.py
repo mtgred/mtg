@@ -214,8 +214,11 @@ def _deck_cards(deck_id: str) -> list[DeckCard]:
     return cards
 
 
-def fetch(since: date | None):
-    """Yield melee.gg events held on/after ``since`` (default: the last week)."""
+def fetch(since: date | None, formats: set[str] | None = None):
+    """Yield melee.gg events held on/after ``since`` (default: the last week).
+
+    ``formats`` is ignored (discovered per event); the caller filters the stream.
+    """
     today = date.today()
     start = since or today - timedelta(days=DEFAULT_DAYS)
     events = _list_events(start, today)

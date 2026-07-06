@@ -287,7 +287,7 @@ def main(argv=None):
             stream = load_cache(n, args.cache_dir, args.since)
         else:
             print(f"Fetching from {n}...", file=sys.stderr)
-            stream = SOURCES[n].fetch(args.since)
+            stream = SOURCES[n].fetch(args.since, formats)
         fetched: list[Tournament] = []
         for t in stream:
             if formats is not None and (t.format or "").lower() not in formats:

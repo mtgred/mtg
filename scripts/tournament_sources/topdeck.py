@@ -109,8 +109,11 @@ def _decks(standings: list[dict]) -> list[Deck]:
     return decks
 
 
-def fetch(since: date | None):
-    """Yield topdeck.gg events held on/after ``since`` (default: the last week)."""
+def fetch(since: date | None, formats: set[str] | None = None):
+    """Yield topdeck.gg events held on/after ``since`` (default: the last week).
+
+    ``formats`` is ignored (discovered per event); the caller filters the stream.
+    """
     key = os.environ.get("TOPDECK_API_KEY")
     if not key:
         log("  TOPDECK_API_KEY not set — skipping topdeck (free key: https://topdeck.gg/developers)")
