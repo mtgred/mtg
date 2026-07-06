@@ -633,7 +633,16 @@ main {
   @apply flex flex-col gap-2 mb-4;
 }
 .deck-head-top {
-  @apply flex items-center gap-3 flex-wrap;
+  @apply flex items-baseline gap-3 flex-wrap;
+  h2 {
+    @apply mb-0;
+  }
+}
+.deck-head-player {
+  @apply text-text-dim;
+}
+.deck-head-field {
+  @apply text-text-faint;
 }
 .deck-name-input {
   @apply flex-1 min-w-48 py-1 px-2 -mx-2 bg-transparent border border-transparent rounded-lg text-ink font-semibold tracking-tight text-[clamp(1.4rem,1.4rem+1vw,2rem)];
@@ -876,6 +885,18 @@ main {
   tbody tr:hover {
     @apply bg-paper-raised;
   }
+}
+.standings th:has(.sort-th) {
+  @apply p-0;
+}
+.sort-th {
+  @apply flex items-center gap-1 w-full py-1.5 px-3 font-semibold uppercase text-xs tracking-wider text-text-dim cursor-pointer select-none hover:text-ink;
+}
+.standings-record .sort-th {
+  @apply justify-end;
+}
+.sort-arrow {
+  @apply text-[0.65em] text-garnet;
 }
 .standings-rank {
   @apply w-12 text-text-dim tabular-nums;

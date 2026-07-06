@@ -4,6 +4,8 @@ import { supabase } from "../lib/supabase"
 import { useAsync } from "../lib/useAsync"
 import { formatDate } from "../lib/format"
 import FilterInput from "../components/FilterInput"
+import { useSort } from "../lib/useSort"
+import { SortTh } from "../components/SortTh"
 import type { Format } from "../lib/types"
 
 // A finishing deck within this format, carrying its tournament for context. The
@@ -218,27 +220,35 @@ function MetaTab({
   )
 }
 
-function MetaList({
-  archetypes,
-  total,
-  format,
-}: {
-  archetypes: { name: string; count: number; wins: number; games: number }[]
-  total: number
-  format: string
-}) {
+type Archetype = { name: string; count: number; wins: number; games: number }
+const archetypeSort = {
+  name: (a: Archetype) => a.name,
+  count: (a: Archetype) => a.count,
+  winrate: (a: Archetype) => (a.games > 0 ? a.wins / a.games : null),
+}
+
+function MetaList({ archetypes, total, format }: { archetypes: Archetype[]; total: number; format: string }) {
+  const { sorted, sort, toggle } = useSort(archetypes, archetypeSort, { key: "count", dir: "desc" })
   return (
     <table className="standings">
       <thead>
         <tr>
-          <th>Archetype</th>
-          <th className="standings-record">Decks</th>
-          <th className="standings-record">Share</th>
-          <th className="standings-record">Win rate</th>
+          <SortTh col="name" sort={sort} toggle={toggle}>
+            Archetype
+          </SortTh>
+          <SortTh col="count" sort={sort} toggle={toggle} className="standings-record">
+            Decks
+          </SortTh>
+          <SortTh col="count" sort={sort} toggle={toggle} className="standings-record">
+            Share
+          </SortTh>
+          <SortTh col="winrate" sort={sort} toggle={toggle} className="standings-record">
+            Win rate
+          </SortTh>
         </tr>
       </thead>
       <tbody>
-        {archetypes.map(a => {
+        {sorted.map(a => {
           const share = ((a.count / total) * 100).toFixed(1)
           return (
             <tr key={a.name}>
@@ -256,6 +266,13 @@ function MetaList({
   )
 }
 
+const tournamentSort = {
+  name: (t: MetaTournament & { count: number }) => t.name,
+  held_on: (t: MetaTournament & { count: number }) => t.held_on,
+  location: (t: MetaTournament & { count: number }) => t.location,
+  count: (t: MetaTournament & { count: number }) => t.count,
+}
+
 function TournamentsTab({
   tournaments,
   counts,
@@ -265,34 +282,50 @@ function TournamentsTab({
   counts: Map<number, number>
   format: string
 }) {
+  const rows = useMemo(() => tournaments.map(t => ({ ...t, count: counts.get(t.id) ?? 0 })), [tournaments, counts])
+  const { sorted, sort, toggle } = useSort(rows, tournamentSort, { key: "held_on", dir: "desc" })
   if (tournaments.length === 0) return <p className="muted">No tournaments recorded yet.</p>
   return (
     <table className="standings">
       <thead>
         <tr>
-          <th>Tournament</th>
-          <th>Date</th>
-          <th>Location</th>
-          <th className="standings-record">Decks</th>
+          <SortTh col="name" sort={sort} toggle={toggle}>
+            Tournament
+          </SortTh>
+          <SortTh col="held_on" sort={sort} toggle={toggle}>
+            Date
+          </SortTh>
+          <SortTh col="location" sort={sort} toggle={toggle}>
+            Location
+          </SortTh>
+          <SortTh col="count" sort={sort} toggle={toggle} className="standings-record">
+            Decks
+          </SortTh>
         </tr>
       </thead>
       <tbody>
-        {tournaments.map(t => {
-          const count = counts.get(t.id) ?? 0
-          return (
-            <tr key={t.id}>
-              <td>
-                <Link to={`/${format}/tournaments/${t.id}`}>{t.name}</Link>
-              </td>
-              <td>{t.held_on ? formatDate(t.held_on) : "—"}</td>
-              <td>{t.location ?? "—"}</td>
-              <td className="standings-record">{count}</td>
-            </tr>
-          )
-        })}
+        {sorted.map(t => (
+          <tr key={t.id}>
+            <td>
+              <Link to={`/${format}/tournaments/${t.id}`}>{t.name}</Link>
+            </td>
+            <td>{t.held_on ? formatDate(t.held_on) : "—"}</td>
+            <td>{t.location ?? "—"}</td>
+            <td className="standings-record">{t.count}</td>
+          </tr>
+        ))}
       </tbody>
     </table>
   )
+}
+
+const searchSort = {
+  placement: (d: MetaDeck) => d.placement,
+  archetype: (d: MetaDeck) => d.archetype ?? "Other",
+  player: (d: MetaDeck) => d.player,
+  wins: (d: MetaDeck) => d.wins,
+  tournament: (d: MetaDeck) => d.tournament_name,
+  date: (d: MetaDeck) => d.tournament_held_on,
 }
 
 function SearchTab({
@@ -310,6 +343,7 @@ function SearchTab({
   format: string
   playerCounts: Map<number, number>
 }) {
+  const { sorted, sort, toggle } = useSort(decks, searchSort, { key: "placement", dir: "asc" })
   return (
     <>
       <div className="mb-5 [&_.search-field]:ml-0">
@@ -323,16 +357,28 @@ function SearchTab({
         <table className="standings">
           <thead>
             <tr>
-              <th className="standings-rank">#</th>
-              <th>Deck</th>
-              <th>Player</th>
-              <th className="standings-record">Record</th>
-              <th>Tournament</th>
-              <th>Date</th>
+              <SortTh col="placement" sort={sort} toggle={toggle} className="standings-rank">
+                #
+              </SortTh>
+              <SortTh col="archetype" sort={sort} toggle={toggle}>
+                Deck
+              </SortTh>
+              <SortTh col="player" sort={sort} toggle={toggle}>
+                Player
+              </SortTh>
+              <SortTh col="wins" sort={sort} toggle={toggle} className="standings-record">
+                Record
+              </SortTh>
+              <SortTh col="tournament" sort={sort} toggle={toggle}>
+                Tournament
+              </SortTh>
+              <SortTh col="date" sort={sort} toggle={toggle}>
+                Date
+              </SortTh>
             </tr>
           </thead>
           <tbody>
-            {decks.map(d => (
+            {sorted.map(d => (
               <tr key={d.id}>
                 <td className="standings-rank">
                   {d.placement ?? "—"}
