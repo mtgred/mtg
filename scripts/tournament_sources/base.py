@@ -29,6 +29,7 @@ REQUEST_DELAY = 0.1  # polite delay between requests
 MAX_ATTEMPTS = 4  # total tries per request before giving up
 RETRY_BACKOFF = 2.0  # base seconds for exponential backoff between retries
 RETRY_STATUS = {429, 500, 502, 503, 504}  # transient HTTP statuses worth retrying
+RETRY_AFTER_CAP = 1800  # honor a server's Retry-After up to this long (mtgdecks meters deck pages in ~12-min windows)
 
 # Transient network failures that should be retried rather than aborting a long
 # run: dropped/reset connections (RemoteDisconnected, ConnectionError), read
@@ -76,6 +77,12 @@ class Source(Protocol):
         ...
 
 
+def _ascii(url: str) -> str:
+    """Percent-encode non-ASCII in a URL — hrefs scraped from HTML can carry raw
+    Unicode (e.g. Cyrillic in an event slug), which http.client rejects."""
+    return urllib.parse.quote(url, safe=":/?#[]@!$&'()*+,;=%")
+
+
 def http_get(url: str, fatal: bool = True, headers: dict | None = None) -> str | None:
     """GET a URL and return the decoded body, with a descriptive User-Agent.
 
@@ -83,7 +90,7 @@ def http_get(url: str, fatal: bool = True, headers: dict | None = None) -> str |
     for per-item fetches (a single deck page) that shouldn't kill a long run.
     ``headers`` overrides/extends the defaults (some sources reject our UA).
     """
-    return _request(urllib.request.Request(url, headers={**HEADERS, **(headers or {})}), fatal)
+    return _request(urllib.request.Request(_ascii(url), headers={**HEADERS, **(headers or {})}), fatal)
 
 
 def http_post(url: str, data: dict, fatal: bool = True, headers: dict | None = None) -> str | None:
@@ -95,7 +102,7 @@ def http_post(url: str, data: dict, fatal: bool = True, headers: dict | None = N
         **(headers or {}),
     }
     body = urllib.parse.urlencode(data).encode()
-    return _request(urllib.request.Request(url, data=body, headers=merged), fatal)
+    return _request(urllib.request.Request(_ascii(url), data=body, headers=merged), fatal)
 
 
 def _request(req: urllib.request.Request, fatal: bool) -> str | None:
@@ -125,6 +132,9 @@ def _request(req: urllib.request.Request, fatal: bool) -> str | None:
             time.sleep(REQUEST_DELAY)
         if attempt < MAX_ATTEMPTS:
             wait = RETRY_BACKOFF * 2 ** (attempt - 1)
+            retry_after = (getattr(last, "headers", None) or {}).get("Retry-After", "")
+            if retry_after.isdigit():  # rate-limited: the server says exactly how long to back off
+                wait = min(int(retry_after) + 1, RETRY_AFTER_CAP)
             log(f"  retry {attempt}/{MAX_ATTEMPTS - 1} for {req.full_url} in {wait:.0f}s ({last})")
             time.sleep(wait)
     if not fatal:
