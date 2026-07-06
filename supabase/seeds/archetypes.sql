@@ -3,17 +3,52 @@
 -- signature_cards use exact cards.name; a card absent from the current dataset
 -- simply never matches. min_signatures null => require every signature card.
 --
--- Coverage tracks the sample decks in supabase/seeds/tournaments.sql so the
--- classifier visibly reproduces their labels; a few extra real archetypes are
--- included per format to exercise the per-format rules table.
+-- Pioneer/Standard coverage tracks the sample decks in
+-- supabase/seeds/tournaments.sql so the classifier visibly reproduces their
+-- labels; a few extra real archetypes are included to exercise the rules table.
+
+-- Modern. Archetype names and sort order follow the mtgdecks.net metagame page
+-- (https://mtgdecks.net/Modern, July 2026); signature cards were picked from
+-- each archetype's mtgdecks "average deck" play rates, preferring cards unique
+-- to the archetype. Overlapping shells (Energy, Blink, Reanimator, Eldrazi,
+-- cascade) disambiguate by matched count: the specific variant lists the shared
+-- core plus its own cards with a higher min, so it out-matches the generic one
+-- (matched DESC in tournament_deck_archetypes). Izzet Murktide and Mono-Green
+-- Tron sit at the end for older tournaments.sql sample decks.
 insert into archetypes (format, name, sort_order, signature_cards, min_signatures) values
-  -- Modern
-  ('modern',   'Izzet Murktide',     10, array['Murktide Regent', 'Dragon''s Rage Channeler'],                 1),
-  ('modern',   'Boros Energy',       20, array['Ocelot Pride', 'Guide of Souls', 'Amped Raptor'],              2),
-  ('modern',   'Amulet Titan',       30, array['Primeval Titan', 'Amulet of Vigor'],                           2),
-  ('modern',   'Living End',         40, array['Living End', 'Shardless Agent'],                               1),
-  ('modern',   'Mono-Green Tron',    50, array['Urza''s Tower', 'Urza''s Mine', 'Urza''s Power Plant'],        2),
-  ('modern',   'Domain Zoo',         60, array['Scion of Draco', 'Tribal Flames', 'Territorial Kavu'],         2),
+  ('modern', 'Boros Energy',              10, array['Guide of Souls', 'Ocelot Pride', 'Ajani, Nacatl Pariah // Ajani, Nacatl Avenger', 'Galvanic Discharge'], 3),
+  ('modern', 'Izzet Metalcraft',          20, array['Mox Opal', 'Kappa Cannoneer', 'Emry, Lurker of the Loch', 'Pinnacle Emissary'], 2),
+  ('modern', 'Izzet Prowess',             30, array['Monastery Swiftspear', 'Lava Dart', 'Expressive Iteration', 'Dragon''s Rage Channeler', 'Mutagenic Growth'], 3),
+  ('modern', 'Esper Reanimator',          40, array['Goryo''s Vengeance', 'Atraxa, Grand Unifier', 'Griselbrand', 'Faithful Mending', 'Ephemerate', 'Solitude'], 3),
+  ('modern', 'Eldrazi Tron',              50, array['Urza''s Tower', 'Urza''s Mine', 'Urza''s Power Plant', 'Eldrazi Temple', 'Thought-Knot Seer', 'Karn, the Great Creator'], 5),
+  ('modern', 'Eldrazi Bloodchief Combo',  60, array['Basking Broodscale', 'Blade of the Bloodchief', 'Glaring Fleshraker', 'Ancient Stirrings'], 2),
+  ('modern', 'Grixis Reanimator',         70, array['Persist', 'Archon of Cruelty', 'Faithless Looting', 'Psychic Frog', 'Emperor of Bones'], 3),
+  ('modern', 'Living End',                80, array['Living End', 'Shardless Agent', 'Curator of Mysteries'], 1),
+  ('modern', 'Boros Wildfire',            90, array['Cleansing Wildfire', 'Price of Freedom', 'Demolition Field'], 2),
+  ('modern', 'Ruby Storm',               100, array['Ral, Monsoon Mage // Ral, Leyline Prodigy', 'Pyretic Ritual', 'Desperate Ritual', 'Ruby Medallion'], 2),
+  ('modern', 'Eldrazi Ramp',             110, array['Sowing Mycospawn', 'Kozilek''s Command', 'Emrakul, the Promised End', 'Utopia Sprawl', 'Talisman of Impulse'], 3),
+  ('modern', 'Domain Aggro',             120, array['Scion of Draco', 'Territorial Kavu', 'Leyline of the Guildpact', 'Tribal Flames'], 2),
+  ('modern', 'Esper Blink',              130, array['Solitude', 'Ephemerate', 'Phelia, Exuberant Shepherd', 'Overlord of the Balemurk', 'Watery Grave', 'Godless Shrine'], 4),
+  ('modern', 'Azorius Blink',            140, array['Solitude', 'Ephemerate', 'Quantum Riddler', 'Hallowed Fountain', 'Phelia, Exuberant Shepherd'], 4),
+  ('modern', 'Azorius Control',          150, array['Supreme Verdict', 'Teferi, Time Raveler', 'Counterspell', 'Prismatic Ending', 'Hall of Storm Giants'], 3),
+  ('modern', 'Dimir Frog',               160, array['Psychic Frog', 'Counterspell', 'Spell Snare', 'Fatal Push'], 3),
+  ('modern', 'Amulet Titan',             170, array['Primeval Titan', 'Amulet of Vigor'], 2),
+  ('modern', 'Tameshi Belcher',          180, array['Tameshi, Reality Architect', 'Goblin Charbelcher', 'Lotus Bloom'], 2),
+  ('modern', 'Golgari Yawgmoth',         190, array['Yawgmoth, Thran Physician', 'Young Wolf', 'Chord of Calling'], 2),
+  ('modern', 'Burn',                     200, array['Lava Spike', 'Boros Charm', 'Goblin Guide', 'Rift Bolt', 'Searing Blaze'], 3),
+  ('modern', 'Jeskai Blink',             210, array['Solitude', 'Ephemerate', 'Quantum Riddler', 'Phlage, Titan of Fire''s Fury', 'Steam Vents', 'Arena of Glory', 'Consign to Memory'], 5),
+  ('modern', 'Simic Ritual',             220, array['Birthing Ritual', 'Ice-Fang Coatl', 'Coiling Oracle'], 2),
+  ('modern', 'Jeskai Control',           230, array['Phlage, Titan of Fire''s Fury', 'Wrath of the Skies', 'Teferi, Time Raveler', 'Counterspell', 'Galvanic Discharge', 'Steam Vents'], 4),
+  ('modern', 'Samwise Combo',            240, array['Samwise Gamgee', 'Cauldron Familiar', 'Viscera Seer', 'Gilded Goose'], 2),
+  ('modern', 'Mono Black Necrodominance', 250, array['Necrodominance', 'Soul Spike', 'Sheoldred, the Apocalypse'], 2),
+  ('modern', 'Neoform',                  260, array['Allosaurus Rider', 'Neoform', 'Eldritch Evolution', 'Summoner''s Pact'], 2),
+  ('modern', 'Hollow One',               270, array['Hollow One', 'Burning Inquiry', 'Goblin Lore'], 2),
+  ('modern', 'Mardu Energy',             280, array['Guide of Souls', 'Ocelot Pride', 'Ajani, Nacatl Pariah // Ajani, Nacatl Avenger', 'Orcish Bowmasters', 'Godless Shrine', 'Blood Crypt'], 5),
+  ('modern', 'Temur Cascade',            290, array['Crashing Footfalls', 'Violent Outburst', 'Shardless Agent', 'Fire // Ice'], 2),
+  ('modern', 'Izzet Murktide',           300, array['Murktide Regent', 'Dragon''s Rage Channeler'], 2),
+  ('modern', 'Mono-Green Tron',          310, array['Urza''s Tower', 'Urza''s Mine', 'Urza''s Power Plant'], 2);
+
+insert into archetypes (format, name, sort_order, signature_cards, min_signatures) values
   -- Pioneer
   ('pioneer',  'Izzet Phoenix',      10, array['Arclight Phoenix'],                                            1),
   ('pioneer',  'Rakdos Midrange',    20, array['Bloodtithe Harvester', 'Fable of the Mirror-Breaker // Reflection of Kiki-Jiki'], 1),
@@ -36,8 +71,8 @@ insert into archetypes (format, name, sort_order, signature_cards, min_signature
   ('premodern', 'Enchantress',            340, array['Argothian Enchantress', 'Enchantress''s Presence', 'Wild Growth', 'Elephant Grass', 'Solitary Confinement', 'Sterling Grove'], 3),
   ('premodern', 'Landstill',              610, array['Counterspell', 'Standstill', 'Wrath of God', 'Faerie Conclave', 'Decree of Justice', 'Adarkar Wastes', 'Fact or Fiction', 'Impulse'],   6),
   ('premodern', 'RG Sligh',               390, array['Grim Lavamancer', 'Mogg Fanatic', 'Lightning Bolt', 'Sylvan Library', 'Treetop Village', 'Call of the Herd', 'Karplusan Forest'], 5),
-  ('premodern', 'Sligh',                  400, array['Cursed Scroll', 'Jackal Pup', 'Mogg Fanatic', 'Fireblast', 'Grim Lavamancer', 'Barbarian Ring'], 4),
-  ('premodern', 'Burn',                   405, array['Lightning Bolt', 'Incinerate', 'Fireblast', 'Sulfuric Vortex', 'Flame Rift', 'Seal of Fire'], 4),
+  ('premodern', 'Sligh',                  400, array['Cursed Scroll', 'Jackal Pup', 'Mogg Fanatic', 'Fireblast', 'Grim Lavamancer', 'Ball Lightning', 'Barbarian Ring'], 5),
+  ('premodern', 'Burn',                   405, array['Lightning Bolt', 'Incinerate', 'Fireblast', 'Sulfuric Vortex', 'Flame Rift'], 4),
   ('premodern', '5C Oath Ponza',          295, array['Oath of Druids', 'Sphere of Resistance', 'Thermokarst', 'Winter''s Grasp', 'Terravore', 'City of Brass', 'Gemstone Mine'],   5),
   ('premodern', 'GW Oath Ponza',          295, array['Oath of Druids', 'Sphere of Resistance', 'Thermokarst', 'Winter''s Grasp', 'Terravore', 'Brushland'],   4),
   ('premodern', 'GR Oath Ponza',          296, array['Oath of Druids', 'Sphere of Resistance', 'Thermokarst', 'Winter''s Grasp', 'Terravore', 'Karplusan Forest'],   4),
@@ -105,11 +140,11 @@ insert into archetypes (format, name, sort_order, signature_cards, min_signature
   ('premodern', 'Draco Blast',            730, array['Draco', 'Erratic Explosion'],                                      null),
   ('premodern', 'Domain',                 740, array['Collective Restraint', 'Allied Strategies'],                       1),
   ('premodern', 'Fires',                  750, array['Fires of Yavimaya'],                                               1),
-  ('premodern', 'The Solution',           750, array['Lightning Angel', 'Lightning Bolt', 'Mother of Runes', 'City of Brass', 'Reflecting Pool'], 3),
+  ('premodern', 'The Solution',           750, array['Lightning Angel', 'Lightning Bolt', 'Mother of Runes', 'City of Brass', 'Shivan Reef', 'Reflecting Pool'], 4),
   ('premodern', 'Jund',                   750, array['Ravenous Rats', 'Tempting Wurm', 'Cabal Therapy', 'Sylvan Library', 'Call of the Herd', 'Lightning Bolt'], 4),
   ('premodern', 'Mono Red Control',       760, array['Shard Phoenix', 'Hammer of Bogardan', 'Pillage', 'Lightning Bolt', 'Powder Keg', 'Nevinyrral''s Disk'], 3),
   ('premodern', 'Mono White Control',     770, array['Armageddon', 'Sphere of Resistance', 'Exalted Angel', 'Decree of Justice', 'Marble Diamond'], 4),
   ('premodern', 'Mono Blue Control',      770, array['Rainbow Efreet', 'Counterspell'], null),
   ('premodern', 'UW Control',             780, array['Counterspell', 'Wrath of God', 'Exalted Angel', 'Accumulated Knowledge', 'Adarkar Wastes'], 4),
   ('premodern', 'UR Control',             790, array['Prophetic Bolt', 'Lightning Bolt', 'Counterspell', 'Shivan Reef'], 3),
-  ('premodern', 'UBW Control',            800, array['Meddling Mage', 'Shadowmage Infiltrator', 'Vindicate', 'Counterspell'], 3);
+  ('premodern', 'UBW Control',            800, array['Meddling Mage', 'Shadowmage Infiltrator', 'Vindicate', 'Counterspell', 'Duress'], 4);
