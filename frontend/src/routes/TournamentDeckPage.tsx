@@ -219,7 +219,9 @@ export default function TournamentDeckPage() {
       <header className="deck-head">
         <div className="deck-head-top">
           <h2>{deck.archetype ?? `${deck.player}'s deck`}</h2>
-          <span className="deck-head-player">{deck.player}</span>
+          <Link className="deck-head-player" to={`/${format || "modern"}/search?q=${encodeURIComponent(deck.player)}`}>
+            {deck.player}
+          </Link>
           {deck.placement != null && (
             <span className="code-badge">
               #{deck.placement}
@@ -334,7 +336,9 @@ export default function TournamentDeckPage() {
                       </Link>
                     )}
                   </span>
-                  <span className="deck-sibling-player">{s.player}</span>
+                  <span className="deck-sibling-player">
+                    <Link to={`/${format || "modern"}/search?q=${encodeURIComponent(s.player)}`}>{s.player}</Link>
+                  </span>
                 </li>
               )
             })}

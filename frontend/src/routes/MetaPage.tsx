@@ -51,20 +51,30 @@ async function loadMeta(format: string): Promise<MetaData> {
 
   // Every recorded finish in this format, with its archetype already classified
   // and tournament context flattened in by the `meta_decks` view. Powers both
-  // the archetype breakdown and the deck search.
-  const { data: decks, error: dErr } = await supabase
-    .from("meta_decks")
-    .select(
-      "id,player,archetype,archetype_id,placement,wins,losses,draws,tournament_id,tournament_name,tournament_held_on",
-    )
-    .eq("format", format)
-    .order("placement", { ascending: true, nullsFirst: false })
-  if (dErr) throw dErr
+  // the archetype breakdown and the deck search. Paged in full because a busy
+  // format exceeds PostgREST's max_rows (1000) — and placement-less league decks
+  // sort last, so a single capped request would silently drop whole leagues.
+  const decks: MetaDeck[] = []
+  const PAGE = 1000
+  for (let from = 0; ; from += PAGE) {
+    const { data: page, error: dErr } = await supabase
+      .from("meta_decks")
+      .select(
+        "id,player,archetype,archetype_id,placement,wins,losses,draws,tournament_id,tournament_name,tournament_held_on",
+      )
+      .eq("format", format)
+      .order("placement", { ascending: true, nullsFirst: false })
+      .order("id", { ascending: true })
+      .range(from, from + PAGE - 1)
+    if (dErr) throw dErr
+    decks.push(...((page ?? []) as unknown as MetaDeck[]))
+    if (!page || page.length < PAGE) break
+  }
 
   return {
     format: (fmt as Format) ?? null,
     tournaments: (tournaments ?? []) as MetaTournament[],
-    decks: (decks ?? []) as unknown as MetaDeck[],
+    decks,
   }
 }
 
@@ -89,11 +99,15 @@ const tabPath = (format: string, id: Tab) => (id === "meta" ? `/${format}` : `/$
 export default function MetaPage() {
   const { format = "", tab: tabParam } = useParams()
   const { data, loading, error } = useAsync(() => loadMeta(format), [format])
-  // The search filter is URL-driven (?q=) so archetype rows can deep-link into a
-  // pre-filtered deck list, tcdecks-style.
+  // The search filter is URL-driven: ?q= for free-text, ?archetype= for an exact
+  // archetype match — archetype rows deep-link with the latter so "Sligh" doesn't
+  // also match "RG Sligh".
   const [searchParams, setSearchParams] = useSearchParams()
   const query = searchParams.get("q") ?? ""
-  const setQuery = (v: string) => setSearchParams(v ? { q: v } : {}, { replace: true })
+  const archetype = searchParams.get("archetype")
+  const setParams = (q: string, arch: string | null) =>
+    setSearchParams({ ...(q && { q }), ...(arch && { archetype: arch }) }, { replace: true })
+  const setQuery = (v: string) => setParams(v, archetype)
 
   const tab: Tab = tabParam && TAB_IDS.has(tabParam) ? (tabParam as Tab) : "meta"
 
@@ -128,11 +142,14 @@ export default function MetaPage() {
 
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return decks
-    return decks.filter(
-      d => (d.archetype ?? "Other").toLowerCase().includes(q) || d.player.toLowerCase().includes(q),
-    )
-  }, [decks, query])
+    let list = decks
+    if (archetype) list = list.filter(d => (d.archetype ?? "Other") === archetype)
+    if (q)
+      list = list.filter(
+        d => (d.archetype ?? "Other").toLowerCase().includes(q) || d.player.toLowerCase().includes(q),
+      )
+    return list
+  }, [decks, query, archetype])
 
   const formatName = data?.format?.name ?? format
 
@@ -186,6 +203,8 @@ export default function MetaPage() {
           decks={matches}
           query={query}
           onQuery={setQuery}
+          archetype={archetype}
+          onClearArchetype={() => setParams(query, null)}
           total={decks.length}
           format={format}
           playerCounts={playerCounts}
@@ -253,7 +272,7 @@ function MetaList({ archetypes, total, format }: { archetypes: Archetype[]; tota
           return (
             <tr key={a.name}>
               <td>
-                <Link to={`/${format}/search?q=${encodeURIComponent(a.name)}`}>{a.name}</Link>
+                <Link to={`/${format}/search?archetype=${encodeURIComponent(a.name)}`}>{a.name}</Link>
               </td>
               <td className="standings-record">{a.count}</td>
               <td className="standings-record">{share}%</td>
@@ -266,11 +285,12 @@ function MetaList({ archetypes, total, format }: { archetypes: Archetype[]; tota
   )
 }
 
+type TournamentRow = MetaTournament & { count: number; size: number }
 const tournamentSort = {
-  name: (t: MetaTournament & { count: number }) => t.name,
-  held_on: (t: MetaTournament & { count: number }) => t.held_on,
-  location: (t: MetaTournament & { count: number }) => t.location,
-  count: (t: MetaTournament & { count: number }) => t.count,
+  name: (t: TournamentRow) => t.name,
+  held_on: (t: TournamentRow) => t.held_on,
+  location: (t: TournamentRow) => t.location,
+  size: (t: TournamentRow) => t.size,
 }
 
 function TournamentsTab({
@@ -282,7 +302,17 @@ function TournamentsTab({
   counts: Map<number, number>
   format: string
 }) {
-  const rows = useMemo(() => tournaments.map(t => ({ ...t, count: counts.get(t.id) ?? 0 })), [tournaments, counts])
+  // MTGO challenges only publish the top 32 decklists, so a raw deck count is
+  // always 32 and uninformative — prefer the reported field size, falling back
+  // to the recorded deck count for events without one (e.g. leagues).
+  const rows = useMemo(
+    () =>
+      tournaments.map(t => {
+        const count = counts.get(t.id) ?? 0
+        return { ...t, count, size: t.player_count ?? count }
+      }),
+    [tournaments, counts],
+  )
   const { sorted, sort, toggle } = useSort(rows, tournamentSort, { key: "held_on", dir: "desc" })
   if (tournaments.length === 0) return <p className="muted">No tournaments recorded yet.</p>
   return (
@@ -298,8 +328,8 @@ function TournamentsTab({
           <SortTh col="location" sort={sort} toggle={toggle}>
             Location
           </SortTh>
-          <SortTh col="count" sort={sort} toggle={toggle} className="standings-record">
-            Decks
+          <SortTh col="size" sort={sort} toggle={toggle} className="standings-record">
+            Players
           </SortTh>
         </tr>
       </thead>
@@ -311,7 +341,7 @@ function TournamentsTab({
             </td>
             <td>{t.held_on ? formatDate(t.held_on) : "—"}</td>
             <td>{t.location ?? "—"}</td>
-            <td className="standings-record">{t.count}</td>
+            <td className="standings-record">{t.size || "—"}</td>
           </tr>
         ))}
       </tbody>
@@ -332,6 +362,8 @@ function SearchTab({
   decks,
   query,
   onQuery,
+  archetype,
+  onClearArchetype,
   total,
   format,
   playerCounts,
@@ -339,6 +371,8 @@ function SearchTab({
   decks: MetaDeck[]
   query: string
   onQuery: (v: string) => void
+  archetype: string | null
+  onClearArchetype: () => void
   total: number
   format: string
   playerCounts: Map<number, number>
@@ -346,18 +380,26 @@ function SearchTab({
   const { sorted, sort, toggle } = useSort(decks, searchSort, { key: "placement", dir: "asc" })
   return (
     <>
-      <div className="mb-5 [&_.search-field]:ml-0">
+      <div className="mb-5 flex items-center gap-3 [&_.search-field]:ml-0">
         <FilterInput placeholder="Search by archetype or player…" value={query} onChange={onQuery} />
+        {archetype && (
+          <span className="muted text-sm">
+            Archetype: {archetype}{" "}
+            <button type="button" aria-label="Clear archetype filter" onClick={onClearArchetype}>
+              ×
+            </button>
+          </span>
+        )}
       </div>
       {total === 0 ? (
         <p className="muted">No decks recorded yet.</p>
       ) : decks.length === 0 ? (
-        <p className="muted">No decks match “{query}”.</p>
+        <p className="muted">No decks match{query && ` “${query}”`}.</p>
       ) : (
         <table className="standings">
           <thead>
             <tr>
-              <SortTh col="placement" sort={sort} toggle={toggle} className="standings-rank">
+              <SortTh col="placement" sort={sort} toggle={toggle} className="standings-rank standings-record">
                 #
               </SortTh>
               <SortTh col="archetype" sort={sort} toggle={toggle}>
@@ -372,7 +414,7 @@ function SearchTab({
               <SortTh col="tournament" sort={sort} toggle={toggle}>
                 Tournament
               </SortTh>
-              <SortTh col="date" sort={sort} toggle={toggle}>
+              <SortTh col="date" sort={sort} toggle={toggle} className="standings-record">
                 Date
               </SortTh>
             </tr>
@@ -380,7 +422,7 @@ function SearchTab({
           <tbody>
             {sorted.map(d => (
               <tr key={d.id}>
-                <td className="standings-rank">
+                <td className="standings-rank standings-record">
                   {d.placement ?? "—"}
                   {playerCounts.has(d.tournament_id) && `/${playerCounts.get(d.tournament_id)}`}
                 </td>
@@ -389,12 +431,14 @@ function SearchTab({
                     {d.archetype ?? "Other"}
                   </Link>
                 </td>
-                <td>{d.player}</td>
+                <td>
+                  <Link to={`/${format}/search?q=${encodeURIComponent(d.player)}`}>{d.player}</Link>
+                </td>
                 <td className="standings-record">{record(d) ?? "—"}</td>
                 <td>
                   <Link to={`/${format}/tournaments/${d.tournament_id}`}>{d.tournament_name ?? "—"}</Link>
                 </td>
-                <td>{d.tournament_held_on ? formatDate(d.tournament_held_on) : "—"}</td>
+                <td className="standings-record">{d.tournament_held_on ? formatDate(d.tournament_held_on) : "—"}</td>
               </tr>
             ))}
           </tbody>
