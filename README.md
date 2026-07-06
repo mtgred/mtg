@@ -12,6 +12,7 @@ committed seed.
 - `scripts/` — stdlib-only Python data tooling (no dependencies):
   - `generate_seed.py` — fetches Scryfall data into `supabase/seed.sql`.
   - `ingest_tournaments.py` — ingests competitive results (see below).
+  - `ingest_goatbots_prices.py` — refreshes MTGO prices from Goatbots (see below).
 
 ## Getting started
 
@@ -136,6 +137,40 @@ Create a module under `scripts/tournament_sources/` exposing a module-level
 objects (see `mtgo.py` and `base.py`), then register it in `SOURCES` in
 `tournament_sources/__init__.py`. Nothing downstream — name resolution, SQL
 generation, caching, snapshotting — needs to change.
+
+## MTGO prices (Goatbots)
+
+The MTGO mode of the deck price view prices each card at its **lowest
+[Goatbots](https://www.goatbots.com) sell price** across all of the card's MTGO
+versions (every printing, foil and nonfoil) — the same headline price a
+goatbots.com card page shows. Cards Goatbots doesn't stock fall back to the
+default printing's Scryfall `tix`.
+
+`scripts/ingest_goatbots_prices.py` downloads Goatbots' daily bulk price file
+(linked from <https://www.goatbots.com/download-prices>; MTGO catalog id → sell
+price in tix) and rewrites the `goatbots_prices` table in one transaction, so
+re-running it is idempotent. The frontend reads the `card_mtgo_prices` view,
+which joins those ids against `printings.mtgo_id` / `mtgo_foil_id` and takes the
+per-card minimum.
+
+```bash
+# Refresh prices in the local DB
+python scripts/ingest_goatbots_prices.py
+
+# Also rewrite the seed fixture that `supabase db reset` reloads
+python scripts/ingest_goatbots_prices.py --snapshot
+
+# Preview the SQL / target production
+python scripts/ingest_goatbots_prices.py --dry-run
+DATABASE_URL="$SUPABASE_DB_URL" python scripts/ingest_goatbots_prices.py
+```
+
+Like tournament ingestion, `--snapshot` writes the seed
+(`supabase/seeds/goatbots_prices.sql`) that `supabase db reset` loads; it's
+listed as a glob in `config.toml`, so a reset also works when the file is
+absent. Note: Goatbots sits behind Cloudflare, which rejects curl's TLS
+fingerprint but passes Python `urllib` with a descriptive User-Agent — use the
+script rather than curl.
 
 ## Seed regeneration
 

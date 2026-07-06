@@ -10,12 +10,13 @@ type SetRef = Pick<Set, "code" | "name" | "icon_svg_uri">
 
 type FullPrinting = Printing & { cards: Card | null; sets: SetRef | null }
 
-type Version = Pick<Printing, "id" | "collector_number" | "rarity" | "released_at" | "image_uris" | "prices"> & { sets: SetRef | null }
+type Version = Pick<Printing, "id" | "collector_number" | "rarity" | "released_at" | "image_uris" | "prices" | "mtgo_id" | "mtgo_foil_id"> & { sets: SetRef | null }
 
 type CardData = {
   printing: FullPrinting
   versions: Version[]
   formats: Format[]
+  goatbots: Record<number, number> // mtgo catalog id -> Goatbots sell price (tix)
 }
 
 async function loadCard(id: string): Promise<CardData> {
@@ -34,7 +35,7 @@ async function loadCard(id: string): Promise<CardData> {
   const [versionsRes, formatsRes] = await Promise.all([
     supabase
       .from("printings")
-      .select("id,collector_number,rarity,released_at,image_uris,prices,sets(code,name,icon_svg_uri)")
+      .select("id,collector_number,rarity,released_at,image_uris,prices,mtgo_id,mtgo_foil_id,sets(code,name,icon_svg_uri)")
       .eq("card_id", full.card_id)
       .order("released_at", { ascending: true, nullsFirst: false }),
     supabase
@@ -44,11 +45,23 @@ async function loadCard(id: string): Promise<CardData> {
   ])
   if (versionsRes.error) throw versionsRes.error
   if (formatsRes.error) throw formatsRes.error
+  const versions = (versionsRes.data ?? []) as unknown as Version[]
+
+  // Goatbots MTGO sell prices for every version of the card; foil and nonfoil
+  // are distinct catalog ids. Preferred over Scryfall's tix when present.
+  const mtgoIds = versions.flatMap(v => [v.mtgo_id, v.mtgo_foil_id]).filter((n): n is number => n != null)
+  const goatbots: Record<number, number> = {}
+  if (mtgoIds.length > 0) {
+    const { data: gb, error: gErr } = await supabase.from("goatbots_prices").select("mtgo_id,tix").in("mtgo_id", mtgoIds)
+    if (gErr) throw gErr
+    for (const row of (gb ?? []) as { mtgo_id: number; tix: number }[]) goatbots[row.mtgo_id] = Number(row.tix)
+  }
 
   return {
     printing: full,
-    versions: (versionsRes.data ?? []) as unknown as Version[],
+    versions,
     formats: (formatsRes.data ?? []) as Format[],
+    goatbots,
   }
 }
 
@@ -60,7 +73,9 @@ export default function CardPage() {
   if (error) return <div className="page"><p className="error">{error}</p><p><Link to="/sets">← Back to sets</Link></p></div>
   if (!data) return null
 
-  const { printing: p, versions } = data
+  const { printing: p, versions, goatbots } = data
+  // Goatbots sell price for an MTGO catalog id, as a display string.
+  const gb = (id: number | null | undefined) => (id != null ? goatbots[id]?.toString() : undefined)
   const card = p.cards
   const set = p.sets
   const img = p.image_uris?.normal ?? p.image_uris?.large ?? p.image_uris?.small
@@ -88,7 +103,8 @@ export default function CardPage() {
               {price("USD", formatPrice(p.prices.usd))}
               {price("Foil", formatPrice(p.prices.usd_foil))}
               {price("EUR", p.prices.eur ? `€${p.prices.eur}` : null)}
-              {price("Tix", p.prices.tix)}
+              {price("Tix", gb(p.mtgo_id) ?? p.prices.tix)}
+              {price("Foil tix", gb(p.mtgo_foil_id))}
             </div>
           )}
         </div>
@@ -182,7 +198,7 @@ export default function CardPage() {
                     <span className="v-meta-bottom">
                       <span className="muted v-date">{formatDate(v.released_at)}</span>
                       <span className="v-prices">
-                        {listPrices(v.prices).map(({ label, value }) => (
+                        {listPrices({ ...v.prices, tix: gb(v.mtgo_id) ?? v.prices?.tix ?? null }).map(({ label, value }) => (
                           <span key={label} className="v-price">
                             <span className="v-price-label">{label}</span>
                             {value}

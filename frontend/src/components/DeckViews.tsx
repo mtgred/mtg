@@ -251,23 +251,23 @@ function PriceView({ entries, printings, cheapest }: {
   cheapest: Cheapest
 }) {
   const [mode, setMode] = useState<PriceMode>("cheapest")
-  // Cheapest reads its own source; first-printing and MTGO both read the default
-  // printing (usd vs. tix respectively).
+  // Cheapest reads its own source; first-printing reads the default printing's
+  // usd; MTGO reads its card-level tix (lowest Goatbots sell price).
   const source = mode === "cheapest" ? cheapest : printings
   const fmt = (n: number | null) => (n == null ? null : mode === "mtgo" ? formatTix(String(n)) : formatPrice(String(n)))
-
-  const boards = BOARDS.map(b => ({
-    label: b.label,
-    rows: entries
-      .filter(e => e.board === b.key)
-      .sort((a, b) => (a.cards?.cmc ?? 0) - (b.cards?.cmc ?? 0) || (a.cards?.name ?? "").localeCompare(b.cards?.name ?? "")),
-  })).filter(b => b.rows.length > 0)
 
   const priceOf = (e: DeckEntry) => {
     if (!e.cards || isBasicLand(e.cards.type_line)) return null
     if (mode === "mtgo") return printings[e.cards.id]?.tix ?? null
     return source[e.cards.id]?.usd ?? null
   }
+
+  const boards = BOARDS.map(b => ({
+    label: b.label,
+    rows: entries
+      .filter(e => e.board === b.key)
+      .sort((a, b) => (priceOf(b) ?? 0) - (priceOf(a) ?? 0) || (a.cards?.name ?? "").localeCompare(b.cards?.name ?? "")),
+  })).filter(b => b.rows.length > 0)
   const linkFor = (e: DeckEntry) => (e.cards ? source[e.cards.id]?.id ?? printings[e.cards.id]?.id ?? "" : "")
   const boardTotal = (rows: DeckEntry[]) => rows.reduce((n, e) => n + (priceOf(e) ?? 0) * e.quantity, 0)
   const deckTotal = boards.reduce((n, b) => n + boardTotal(b.rows), 0)

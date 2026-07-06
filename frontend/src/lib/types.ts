@@ -153,6 +153,8 @@ export type Printing = {
   reprint: boolean | null
   digital: boolean | null
   finishes: string[] | null
+  mtgo_id: number | null
+  mtgo_foil_id: number | null
   image_uris: ImageUris | null
   prices: Prices | null
   scryfall_uri?: string | null

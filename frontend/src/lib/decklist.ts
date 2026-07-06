@@ -14,7 +14,9 @@ export type DeckEntry = {
 }
 
 // card_id -> the first (earliest) printing: id for linking, url for images and
-// the hover preview, usd for first-printing pricing, tix for MTGO pricing.
+// the hover preview, usd for first-printing pricing. tix is card-level MTGO
+// pricing: the lowest Goatbots sell price across all the card's MTGO versions
+// (card_mtgo_prices), falling back to the default printing's Scryfall tix.
 export type Printings = Record<number, { id: string; url?: string; usd: number | null; tix: number | null }>
 // card_id -> the cheapest printing (id for linking, usd) for "cheapest" pricing.
 export type Cheapest = Record<number, { id: string; usd: number | null }>
@@ -58,12 +60,14 @@ export async function loadPrintings(cardIds: number[]): Promise<{ printings: Pri
   const printings: Printings = {}
   const cheapest: Cheapest = {}
   if (cardIds.length === 0) return { printings, cheapest }
-  const [{ data: imgs, error: iErr }, { data: cheap, error: cErr }] = await Promise.all([
+  const [{ data: imgs, error: iErr }, { data: cheap, error: cErr }, { data: mtgo, error: mErr }] = await Promise.all([
     supabase.from("card_default_printings").select("id,card_id,image_uris,prices").in("card_id", cardIds),
     supabase.from("card_cheapest_printings").select("id,card_id,prices").in("card_id", cardIds),
+    supabase.from("card_mtgo_prices").select("card_id,tix").in("card_id", cardIds),
   ])
   if (iErr) throw iErr
   if (cErr) throw cErr
+  if (mErr) throw mErr
   for (const row of (imgs ?? []) as unknown as {
     id: string
     card_id: number
@@ -79,6 +83,10 @@ export async function loadPrintings(cardIds: number[]): Promise<{ printings: Pri
   }
   for (const row of (cheap ?? []) as unknown as { id: string; card_id: number; prices: Prices | null }[]) {
     cheapest[row.card_id] = { id: row.id, usd: parseNum(row.prices?.usd) }
+  }
+  for (const row of (mtgo ?? []) as unknown as { card_id: number; tix: number | null }[]) {
+    const p = printings[row.card_id]
+    if (p && row.tix != null) p.tix = row.tix
   }
   return { printings, cheapest }
 }

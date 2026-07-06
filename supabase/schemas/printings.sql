@@ -50,6 +50,23 @@ JOIN sets s ON s.id = p.set_id
 WHERE s.set_type <> 'token' AND p.promo IS NOT TRUE AND 'nonfoil' = ANY(p.finishes)
 ORDER BY p.card_id, (s.code = 'lea'), p.released_at ASC NULLS LAST, p.collector_number ASC;
 
+-- Goatbots MTGO sell prices, one row per MTGO catalog item (foil and nonfoil
+-- versions of a printing have distinct ids). Reference data like cards/printings
+-- (public read, no user writes); refreshed by scripts/ingest_goatbots_prices.py.
+CREATE TABLE goatbots_prices (
+  mtgo_id INT PRIMARY KEY,                    -- MTGO catalog id (printings.mtgo_id / mtgo_foil_id)
+  tix NUMERIC(9,3) NOT NULL                   -- Goatbots sell price in event tickets (bulk sells at 0.002)
+);
+
+-- The lowest Goatbots sell price per oracle card across every MTGO version
+-- (all printings, foil and nonfoil) — the cheapest way to buy the card on MTGO,
+-- matching the headline price on a goatbots.com card page. Read-only.
+CREATE VIEW card_mtgo_prices AS
+SELECT p.card_id, MIN(g.tix) AS tix
+FROM printings p
+JOIN goatbots_prices g ON g.mtgo_id IN (p.mtgo_id, p.mtgo_foil_id)
+GROUP BY p.card_id;
+
 -- The cheapest printing per oracle card: the non-token printing with the lowest
 -- nonfoil USD price (printings without a USD price are excluded, so a card only
 -- appears if at least one printing is priced). Mirrors card_default_printings so

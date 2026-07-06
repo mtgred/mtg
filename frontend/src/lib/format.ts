@@ -30,7 +30,8 @@ export function formatTix(tix: string | null | undefined): string | null {
   if (!tix) return null
   const n = Number(tix)
   if (Number.isNaN(n)) return null
-  return `${n.toFixed(2)} tix`
+  // Goatbots prices bulk at 0.002 tix; keep the third decimal rather than show 0.00.
+  return `${n.toFixed(n > 0 && n < 0.01 ? 3 : 2)} tix`
 }
 
 function money(value: string | null | undefined, symbol: string): string | null {
