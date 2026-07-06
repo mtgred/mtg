@@ -241,6 +241,7 @@ def write_snapshot(sql: str, count: int) -> None:
 def parse_args(argv=None):
     p = argparse.ArgumentParser(description="Ingest tournament results into the database.")
     p.add_argument("--source", action="append", choices=sorted(SOURCES), help="source(s) to ingest (default: all)")
+    p.add_argument("--format", action="append", metavar="CODE", help="only events matching this formats.code (repeatable; default: all)")
     p.add_argument("--since", type=lambda s: datetime.strptime(s, "%Y-%m-%d").date(), help="only events on/after YYYY-MM-DD")
     p.add_argument("--db-url", default=os.environ.get("DATABASE_URL", LOCAL_DB_URL), help="target DB (default: $DATABASE_URL or local)")
     p.add_argument("--snapshot", action="store_true", help="also write supabase/seeds/tournaments.sql")
@@ -254,6 +255,7 @@ def parse_args(argv=None):
 def main(argv=None):
     args = parse_args(argv)
     names = args.source or sorted(SOURCES)
+    formats = {f.lower() for f in args.format} if args.format else None
     resolver = Resolver.from_db(args.db_url)
 
     unresolved: Counter = Counter()
@@ -269,6 +271,8 @@ def main(argv=None):
             stream = SOURCES[n].fetch(args.since)
         fetched: list[Tournament] = []
         for t in stream:
+            if formats is not None and (t.format or "").lower() not in formats:
+                continue
             fetched.append(t)
             sql = tournament_sql(t, resolver, unresolved)
             parts.append(sql)

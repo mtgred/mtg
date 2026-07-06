@@ -58,6 +58,9 @@ python scripts/ingest_tournaments.py
 # A single source, only recent events
 python scripts/ingest_tournaments.py --source mtgo --since 2026-01-01
 
+# Only Modern events (repeat --format for several formats)
+python scripts/ingest_tournaments.py --format modern
+
 # Preview the generated SQL without touching the DB
 python scripts/ingest_tournaments.py --dry-run
 
@@ -68,6 +71,20 @@ DATABASE_URL="$SUPABASE_DB_URL" python scripts/ingest_tournaments.py --source mt
 DB access is delegated to the `psql` CLI (already required by the Supabase
 workflow), so there is no driver dependency. The default target is the local
 Supabase database; override it with `--db-url` or the `DATABASE_URL` env var.
+
+### Options
+
+| Option | Description |
+| --- | --- |
+| `--source NAME` | Source(s) to ingest; repeatable. Default: all (`mtgo`, `melee`). |
+| `--format CODE` | Only events matching this `formats.code` (e.g. `modern`); repeatable. Default: all. Events with no format are excluded when set. |
+| `--since YYYY-MM-DD` | Only events held on or after this date. |
+| `--db-url URL` | Target database. Default: `$DATABASE_URL` or the local Supabase DB. |
+| `--snapshot` | Also write the generated SQL to `supabase/seeds/tournaments.sql`. |
+| `--from-cache` | Re-ingest from `scripts/_tournament_cache/` instead of the network. |
+| `--no-cache` | Don't write fetched data to the cache. |
+| `--cache-dir PATH` | Cache location. Default: `scripts/_tournament_cache/`. |
+| `--dry-run` | Print the SQL instead of applying it. |
 
 ### Disk cache — reload fast after `supabase db reset`
 
