@@ -1,6 +1,6 @@
 -- Per-format metagame archetype classifier. `archetypes` is curated reference
--- data (see supabase/seeds/archetypes.sql), public read-only like formats/cards:
--- no row-level security, populated from the committed seed rather than by users.
+-- data seeded from supabase/seeds/archetypes.sql and editable in-app at
+-- /:format/archetypes (RLS below: world-readable, signed-in users curate).
 --
 -- A finishing deck is labeled by matching its main/commander card list against
 -- each archetype's `signature_cards`; the best match wins (tournament_deck_archetypes).
@@ -21,6 +21,19 @@ CREATE TABLE archetypes (
 );
 
 CREATE INDEX archetypes_format_idx ON archetypes (format);
+
+-- The rules are curated collaboratively from the archetype-rules page. There is
+-- no admin role, so any signed-in user may edit; anonymous visitors only read.
+ALTER TABLE archetypes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Archetypes are viewable by everyone"
+  ON archetypes FOR SELECT
+  USING (true);
+
+CREATE POLICY "Signed-in users manage archetypes"
+  ON archetypes FOR ALL
+  USING ((SELECT auth.uid()) IS NOT NULL)
+  WITH CHECK ((SELECT auth.uid()) IS NOT NULL);
 
 -- Best-matching archetype per finishing deck. For every (deck, archetype) of the
 -- deck's format, count how many of the archetype's signature cards appear in the

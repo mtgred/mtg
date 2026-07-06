@@ -11,6 +11,7 @@ import ArtistPage from "./routes/ArtistPage.tsx"
 import FormatsPage from "./routes/FormatsPage.tsx"
 import FormatPage from "./routes/FormatPage.tsx"
 import MetaPage from "./routes/MetaPage.tsx"
+import ArchetypesPage from "./routes/ArchetypesPage.tsx"
 import TournamentPage from "./routes/TournamentPage.tsx"
 import TournamentDeckPage from "./routes/TournamentDeckPage.tsx"
 import SignInPage from "./routes/SignInPage.tsx"
@@ -47,6 +48,7 @@ const router = createBrowserRouter([
       { path: "decks/:id", element: <DeckPage /> },
       // Per-format metagame pages: /:format, /:format/tournaments, /:format/search.
       // Dynamic, so all static routes above take precedence.
+      { path: ":format/archetypes", element: <ArchetypesPage /> },
       { path: ":format/:tab?", element: <MetaPage /> },
       { path: ":format/tournaments/:id", element: <TournamentPage /> },
       { path: ":format/tournaments/:id/decks/:deckId", element: <TournamentDeckPage /> },
