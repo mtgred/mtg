@@ -149,6 +149,10 @@ def _list_events(start: date, end: date) -> list[dict]:
             old = held and date.fromisoformat(held) <= today - timedelta(days=ENDED_AFTER_DAYS)
             if (r.get("Decklists") or 0) and (ended or old):
                 out.append(r)
+        print(f"\r  scanning event list: {offset}/{total} ({len(out)} with decklists)",
+              end="", file=sys.stderr, flush=True)
+    if offset:
+        print(file=sys.stderr)
     return out
 
 
@@ -217,7 +221,10 @@ def _deck_cards(deck_id: str) -> list[DeckCard]:
 def fetch(since: date | None, formats: set[str] | None = None):
     """Yield melee.gg events held on/after ``since`` (default: the last week).
 
-    ``formats`` is ignored (discovered per event); the caller filters the stream.
+    ``formats`` (requested ``formats.code`` values) is honored to skip the
+    expensive per-event deck fetching: the format is read from the event page —
+    one cheap request — and events that don't match are dropped before their
+    (up to 64) deck pages are fetched. The caller still filters the stream too.
     """
     today = date.today()
     start = since or today - timedelta(days=DEFAULT_DAYS)
@@ -230,6 +237,9 @@ def fetch(since: date | None, formats: set[str] | None = None):
         print(f"\r    [{i}/{len(events)}] {tid} {name_}", end="", file=sys.stderr, flush=True)
 
         page = http_get(EVENT_URL.format(id=tid), headers=HEADERS)
+        fmt = _format(m.group(1)) if (m := _FORMAT_RE.search(page)) else None
+        if formats is not None and fmt not in formats:
+            continue
         entries, total = _standings(_round_ids(page))
 
         decks = []
@@ -262,7 +272,7 @@ def fetch(since: date | None, formats: set[str] | None = None):
             source=name,
             external_id=tid,
             name=name_,
-            format=_format(m.group(1)) if (m := _FORMAT_RE.search(page)) else None,
+            format=fmt,
             held_on=(ev.get("StartDate") or "")[:10] or None,
             location=re.sub(r"\s+", " ", ev.get("OrganizationName") or "").strip() or "Online",
             source_url=EVENT_URL.format(id=tid),
