@@ -12,6 +12,7 @@ Stdlib only, matching scripts/generate_seed.py.
 from __future__ import annotations
 
 import http.client
+import json
 import sys
 import time
 import urllib.error
@@ -93,15 +94,16 @@ def http_get(url: str, fatal: bool = True, headers: dict | None = None) -> str |
     return _request(urllib.request.Request(_ascii(url), headers={**HEADERS, **(headers or {})}), fatal)
 
 
-def http_post(url: str, data: dict, fatal: bool = True, headers: dict | None = None) -> str | None:
-    """POST form-encoded ``data`` (e.g. an AJAX/DataTables endpoint) and return the body."""
+def http_post(url: str, data: dict, fatal: bool = True, headers: dict | None = None, as_json: bool = False) -> str | None:
+    """POST ``data`` form-encoded (e.g. an AJAX/DataTables endpoint) or, with
+    ``as_json``, as a JSON body (e.g. the topdeck.gg API); returns the body."""
     merged = {
         **HEADERS,
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        "Content-Type": "application/json" if as_json else "application/x-www-form-urlencoded; charset=UTF-8",
         "X-Requested-With": "XMLHttpRequest",
         **(headers or {}),
     }
-    body = urllib.parse.urlencode(data).encode()
+    body = (json.dumps(data) if as_json else urllib.parse.urlencode(data)).encode()
     return _request(urllib.request.Request(_ascii(url), data=body, headers=merged), fatal)
 
 

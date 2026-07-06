@@ -37,8 +37,12 @@ changes are not applied live.
 ## Tournament ingestion
 
 `scripts/ingest_tournaments.py` pulls competitive results from external sources
-(currently `mtgo` and `melee`), normalizes them, and upserts them into the
-database. The same command works locally and in production — only the target
+(currently `mtgo`, `melee`, `mtgdecks`, and `topdeck`), normalizes them, and
+upserts them into the database. The `topdeck` source uses topdeck.gg's free API
+and needs `TOPDECK_API_KEY` (get a key at <https://topdeck.gg/developers>) — set
+it in the environment or put `TOPDECK_API_KEY=...` in a gitignored `.env` file
+at the repo root, which the script loads; without it that source is skipped
+with a notice. The same command works locally and in production — only the target
 connection string differs.
 
 The pipeline is **idempotent**: events are keyed on `(source, external_id)`, and
@@ -76,7 +80,7 @@ Supabase database; override it with `--db-url` or the `DATABASE_URL` env var.
 
 | Option | Description |
 | --- | --- |
-| `--source NAME` | Source(s) to ingest; repeatable. Default: all (`mtgo`, `melee`). |
+| `--source NAME` | Source(s) to ingest; repeatable. Default: all (`mtgo`, `melee`, `mtgdecks`, `topdeck`). |
 | `--format CODE` | Only events matching this `formats.code` (e.g. `modern`); repeatable. Default: all. Events with no format are excluded when set. |
 | `--since YYYY-MM-DD` | Only events held on or after this date. |
 | `--db-url URL` | Target database. Default: `$DATABASE_URL` or the local Supabase DB. |

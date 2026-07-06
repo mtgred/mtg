@@ -53,8 +53,26 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from tournament_sources import SOURCES, Deck, DeckCard, Tournament  # noqa: E402
 
 LOCAL_DB_URL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
-SEED_PATH = Path(__file__).resolve().parent.parent / "supabase" / "seeds" / "tournaments.sql"
+ROOT = Path(__file__).resolve().parent.parent
+SEED_PATH = ROOT / "supabase" / "seeds" / "tournaments.sql"
 CACHE_DIR = Path(__file__).resolve().parent / "_tournament_cache"  # gitignored (_*), one JSON per source
+ENV_PATH = ROOT / ".env"  # gitignored KEY=VALUE file for secrets like TOPDECK_API_KEY
+
+
+def load_env(path: Path = ENV_PATH) -> None:
+    """Load KEY=VALUE lines from the repo-root .env into the environment.
+
+    Real environment variables win over the file, so a one-off override on the
+    command line still works. Blank lines, comments, and quotes are tolerated.
+    """
+    if not path.exists():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.removeprefix("export ").partition("=")
+        os.environ.setdefault(key.strip(), value.strip().strip("'\""))
 
 
 def lit(value) -> str:
@@ -253,6 +271,7 @@ def parse_args(argv=None):
 
 
 def main(argv=None):
+    load_env()  # before parse_args so a .env DATABASE_URL feeds the --db-url default
     args = parse_args(argv)
     names = args.source or sorted(SOURCES)
     formats = {f.lower() for f in args.format} if args.format else None
