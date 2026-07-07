@@ -31,7 +31,24 @@ type MetaTournament = {
   held_on: string | null
   location: string | null
   player_count: number | null
+  source: string | null
 }
+
+// Which kind of event a tournament is, for the top-level filter. Anything not
+// ingested from MTGO is treated as a paper event; MTGO events split
+// into leagues (name ends "…League") and everything else competitive (Challenge,
+// Qualifier, Showcase…), which we group as challenges.
+type Kind = "paper" | "challenge" | "league"
+function tournamentKind(t: { source: string | null; name: string }): Kind {
+  if (t.source !== "mtgo") return "paper"
+  return /league\b/i.test(t.name) ? "league" : "challenge"
+}
+const KINDS: { id: Kind; label: string }[] = [
+  { id: "paper", label: "Paper tournaments" },
+  { id: "challenge", label: "MTGO challenges" },
+  { id: "league", label: "MTGO leagues" },
+]
+const ALL_KINDS = KINDS.map(k => k.id)
 
 type MetaData = {
   format: Format | null
@@ -44,7 +61,7 @@ async function loadMeta(format: string): Promise<MetaData> {
 
   const { data: tournaments, error: tErr } = await supabase
     .from("tournaments")
-    .select("id,name,held_on,location,player_count")
+    .select("id,name,held_on,location,player_count,source")
     .eq("format", format)
     .order("held_on", { ascending: false, nullsFirst: false })
   if (tErr) throw tErr
@@ -106,20 +123,52 @@ export default function MetaPage() {
   const query = searchParams.get("q") ?? ""
   const archetype = searchParams.get("archetype")
   const player = searchParams.get("player")
-  // Merge a partial change into the current filters; empty/null values drop out.
-  const setFilters = (next: { q?: string; archetype?: string | null; player?: string | null }) =>
-    setSearchParams(
-      Object.fromEntries(Object.entries({ q: query, archetype, player, ...next }).filter(([, v]) => v)) as Record<
-        string,
-        string
-      >,
-      { replace: true }
-    )
+  // Merge a partial change into the current filters, preserving any params we
+  // don't touch (e.g. the kind filter); empty/null values drop their key.
+  const setFilters = (next: Record<string, string | null>) => {
+    const params = new URLSearchParams(searchParams)
+    for (const [k, v] of Object.entries(next)) if (v) params.set(k, v)
+      else params.delete(k)
+    setSearchParams(params, { replace: true })
+  }
   const setQuery = (v: string) => setFilters({ q: v })
 
   const tab: Tab = tabParam && TAB_IDS.has(tabParam) ? (tabParam as Tab) : "meta"
 
-  const decks = data?.decks ?? NO_DECKS
+  // Event-kind filter shared across all tabs, URL-driven (?kinds=) so it survives
+  // navigating to a deck/tournament and back. Absent param means all kinds; an
+  // empty selection is stored as "none" (a non-kind token that parses to ∅).
+  const kindsParam = searchParams.get("kinds")
+  // Suffix for deep-links into the search tab so they carry the current filter.
+  const kindsQuery = kindsParam ? `&kinds=${kindsParam}` : ""
+  const activeKinds = useMemo(
+    () => (kindsParam == null ? new Set(ALL_KINDS) : new Set(kindsParam.split(",").filter(k => ALL_KINDS.includes(k as Kind)))),
+    [kindsParam]
+  )
+  const toggleKind = (id: Kind) => {
+    const next = new Set(activeKinds)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    const full = ALL_KINDS.every(k => next.has(k))
+    setFilters({ kinds: full ? null : ALL_KINDS.filter(k => next.has(k)).join(",") || "none" })
+  }
+
+  // tournament_id -> kind, so decks (which only carry a tournament id) can be
+  // filtered by the same toggles as the tournament rows.
+  const kindById = useMemo(() => {
+    const m = new Map<number, Kind>()
+    for (const t of data?.tournaments ?? []) m.set(t.id, tournamentKind(t))
+    return m
+  }, [data])
+
+  const tournaments = useMemo(
+    () => (data?.tournaments ?? []).filter(t => activeKinds.has(tournamentKind(t))),
+    [data, activeKinds]
+  )
+  const decks = useMemo(
+    () => (data?.decks ?? NO_DECKS).filter(d => activeKinds.has(kindById.get(d.tournament_id) ?? "paper")),
+    [data, kindById, activeKinds]
+  )
 
   // Archetype share across every finish, best placement broken out.
   const archetypes = useMemo(() => {
@@ -179,11 +228,20 @@ export default function MetaPage() {
         <h1>{formatName}</h1>
       </header>
 
+      <div className="mb-4 flex flex-wrap gap-x-5 gap-y-2">
+        {KINDS.map(k => (
+          <label key={k.id} className="toggle text-sm">
+            <input type="checkbox" checked={activeKinds.has(k.id)} onChange={() => toggleKind(k.id)} />
+            {k.label}
+          </label>
+        ))}
+      </div>
+
       <div className="tabs" role="tablist">
         {TABS.map(t => (
           <Link
             key={t.id}
-            to={tabPath(format, t.id)}
+            to={{ pathname: tabPath(format, t.id), search: kindsParam ? `?kinds=${kindsParam}` : "" }}
             role="tab"
             aria-selected={tab === t.id}
             className={`tab${tab === t.id ? " is-active" : ""}`}
@@ -193,7 +251,7 @@ export default function MetaPage() {
               {t.id === "meta"
                 ? archetypes.length
                 : t.id === "tournaments"
-                  ? (data?.tournaments.length ?? 0)
+                  ? tournaments.length
                   : decks.length}
             </span>
           </Link>
@@ -204,10 +262,10 @@ export default function MetaPage() {
       {error && <p className="error">{error}</p>}
 
       {data && tab === "meta" && (
-        <MetaTab archetypes={archetypes} total={decks.length} formatName={formatName} format={format} />
+        <MetaTab archetypes={archetypes} total={decks.length} formatName={formatName} format={format} kindsQuery={kindsQuery} />
       )}
       {data && tab === "tournaments" && (
-        <TournamentsTab tournaments={data.tournaments} counts={deckCounts} format={format} />
+        <TournamentsTab tournaments={tournaments} counts={deckCounts} format={format} />
       )}
       {data && tab === "search" && (
         <SearchTab
@@ -221,6 +279,7 @@ export default function MetaPage() {
           total={decks.length}
           format={format}
           playerCounts={playerCounts}
+          kindsQuery={kindsQuery}
         />
       )}
     </div>
@@ -232,18 +291,20 @@ function MetaTab({
   total,
   formatName,
   format,
+  kindsQuery,
 }: {
   archetypes: { name: string; count: number; wins: number; games: number }[]
   total: number
   formatName: string
   format: string
+  kindsQuery: string
 }) {
   return (
     <>
       {total === 0 ? (
         <p className="muted">No decks recorded for {formatName} yet.</p>
       ) : (
-        <MetaList archetypes={archetypes} total={total} format={format} />
+        <MetaList archetypes={archetypes} total={total} format={format} kindsQuery={kindsQuery} />
       )}
       <p className="mt-5 text-sm">
         <Link to={`/${format}/archetypes`}>Archetype classifier rules →</Link>
@@ -259,7 +320,17 @@ const archetypeSort = {
   winrate: (a: Archetype) => (a.games > 0 ? a.wins / a.games : null),
 }
 
-function MetaList({ archetypes, total, format }: { archetypes: Archetype[]; total: number; format: string }) {
+function MetaList({
+  archetypes,
+  total,
+  format,
+  kindsQuery,
+}: {
+  archetypes: Archetype[]
+  total: number
+  format: string
+  kindsQuery: string
+}) {
   const { sorted, sort, toggle } = useSort(archetypes, archetypeSort, { key: "count", dir: "desc" })
   return (
     <table className="standings">
@@ -285,7 +356,7 @@ function MetaList({ archetypes, total, format }: { archetypes: Archetype[]; tota
           return (
             <tr key={a.name}>
               <td>
-                <Link to={`/${format}/search?archetype=${encodeURIComponent(a.name)}`}>{a.name}</Link>
+                <Link to={`/${format}/search?archetype=${encodeURIComponent(a.name)}${kindsQuery}`}>{a.name}</Link>
               </td>
               <td className="standings-record">{a.count}</td>
               <td className="standings-record">{share}%</td>
@@ -405,6 +476,7 @@ function SearchTab({
   total,
   format,
   playerCounts,
+  kindsQuery,
 }: {
   decks: MetaDeck[]
   query: string
@@ -416,6 +488,7 @@ function SearchTab({
   total: number
   format: string
   playerCounts: Map<number, number>
+  kindsQuery: string
 }) {
   const { sorted, sort, toggle } = useSort(decks, searchSort, { key: "placement", dir: "asc" })
   return (
@@ -464,7 +537,7 @@ function SearchTab({
                   <Link to={`/${format}/tournaments/${d.tournament_id}/decks/${d.id}`}>{d.archetype ?? "Other"}</Link>
                 </td>
                 <td>
-                  <Link to={`/${format}/search?player=${encodeURIComponent(d.player)}`}>{d.player}</Link>
+                  <Link to={`/${format}/search?player=${encodeURIComponent(d.player)}${kindsQuery}`}>{d.player}</Link>
                 </td>
                 <td className="standings-record">{record(d) ?? "—"}</td>
                 <td>
