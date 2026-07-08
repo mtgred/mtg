@@ -73,8 +73,13 @@ class Tournament:
 class Source(Protocol):
     name: str
 
-    def fetch(self, since: date | None, formats: set[str] | None = None) -> Iterable[Tournament]:
-        """Yield tournaments held on/after ``since`` (None = source's default window).
+    def fetch(self, since: date | None, before: date | None = None, formats: set[str] | None = None) -> Iterable[Tournament]:
+        """Yield tournaments held on/after ``since`` and strictly before ``before``.
+
+        ``since`` None means the source's default window; ``before`` None means no
+        upper bound. Together they form the half-open window ``[since, before)``.
+        Sources apply ``before`` during the crawl (not just as a post-filter) so a
+        bounded window doesn't fetch events newer than ``before``.
 
         ``formats`` is the set of requested ``formats.code`` values (lowercased,
         from ``--format``), or None for all. Sources that can cheaply narrow their

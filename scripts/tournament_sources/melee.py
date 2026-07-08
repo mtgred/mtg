@@ -218,8 +218,8 @@ def _deck_cards(deck_id: str) -> list[DeckCard]:
     return cards
 
 
-def fetch(since: date | None, formats: set[str] | None = None):
-    """Yield melee.gg events held on/after ``since`` (default: the last week).
+def fetch(since: date | None, before: date | None = None, formats: set[str] | None = None):
+    """Yield melee.gg events in ``[since, before)`` (since default: the last week).
 
     ``formats`` (requested ``formats.code`` values) is honored to skip the
     expensive per-event deck fetching: the format is read from the event page —
@@ -228,12 +228,16 @@ def fetch(since: date | None, formats: set[str] | None = None):
     """
     today = date.today()
     start = since or today - timedelta(days=DEFAULT_DAYS)
-    events = _list_events(start, today)
-    log(f"  {len(events)} ended events with decklists in {start.isoformat()}..{today.isoformat()}")
+    end = min(before - timedelta(days=1), today) if before else today  # before is exclusive; endDate is inclusive
+    events = _list_events(start, end)
+    log(f"  {len(events)} ended events with decklists in {start.isoformat()}..{end.isoformat()}")
 
     for i, ev in enumerate(events, 1):
         tid = str(ev["ID"])
         name_ = re.sub(r"\s+", " ", ev.get("Name") or tid).strip()
+        held = (ev.get("StartDate") or "")[:10] or None
+        if before and held and held >= before.isoformat():
+            continue  # too new for the window; skip before fetching its deck pages
         print(f"\r    [{i}/{len(events)}] {tid} {name_}", end="", file=sys.stderr, flush=True)
 
         page = http_get(EVENT_URL.format(id=tid), headers=HEADERS)
@@ -273,7 +277,7 @@ def fetch(since: date | None, formats: set[str] | None = None):
             external_id=tid,
             name=name_,
             format=fmt,
-            held_on=(ev.get("StartDate") or "")[:10] or None,
+            held_on=held,
             location=re.sub(r"\s+", " ", ev.get("OrganizationName") or "").strip() or "Online",
             source_url=EVENT_URL.format(id=tid),
             player_count=total or None,

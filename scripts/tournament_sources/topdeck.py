@@ -109,8 +109,8 @@ def _decks(standings: list[dict]) -> list[Deck]:
     return decks
 
 
-def fetch(since: date | None, formats: set[str] | None = None):
-    """Yield topdeck.gg events held on/after ``since`` (default: the last week).
+def fetch(since: date | None, before: date | None = None, formats: set[str] | None = None):
+    """Yield topdeck.gg events in ``[since, before)`` (since default: the last week).
 
     ``formats`` is ignored (discovered per event); the caller filters the stream.
     """
@@ -134,12 +134,14 @@ def fetch(since: date | None, formats: set[str] | None = None):
         events = json.loads(http_post(API_URL, body, headers={"Authorization": key}, as_json=True))
         kept = 0
         for ev in events:
+            held = ev.get("startDate")
+            if before and held and datetime.fromtimestamp(held, tz=timezone.utc).date() >= before:
+                continue
             standings = ev.get("standings") or []
             decks = _decks(standings)
             if not decks:
                 continue
             kept += 1
-            held = ev.get("startDate")
             place = ev.get("eventData") or {}
             yield Tournament(
                 source=name,

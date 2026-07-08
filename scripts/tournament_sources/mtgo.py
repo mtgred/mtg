@@ -149,16 +149,17 @@ def _player_count(data: dict) -> int | None:
     return int(pc) if pc not in (None, "") else None
 
 
-def fetch(since: date | None, formats: set[str] | None = None):
-    """Yield published MTGO events from ``since``'s month through today.
+def fetch(since: date | None, before: date | None = None, formats: set[str] | None = None):
+    """Yield published MTGO events from ``since``'s month up to ``before`` (or today).
 
     ``formats`` is discovered only per event here, so it's ignored — the caller
     filters the yielded stream.
     """
     today = date.today()
     cursor = (since or today.replace(day=1)).replace(day=1)
+    end = min(before, today) if before else today  # don't scan months past the window
     months = []
-    while cursor <= today:
+    while cursor <= end:
         months.append((cursor.year, cursor.month))
         cursor = (cursor.replace(day=28) + timedelta(days=7)).replace(day=1)
 
@@ -174,6 +175,8 @@ def fetch(since: date | None, formats: set[str] | None = None):
                 continue  # not published yet, or a brackets-only stub
             held = (data.get("starttime") or data.get("publish_date") or "")[:10] or None
             if since and held and held < since.isoformat():
+                continue
+            if before and held and held >= before.isoformat():
                 continue
             print(f"\r    [{i}/{len(slugs)}] {slug} — {len(data['decklists'])} decks", file=sys.stderr)
             yield Tournament(

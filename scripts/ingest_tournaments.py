@@ -271,6 +271,7 @@ def parse_args(argv=None):
     p.add_argument("--source", action="append", choices=sorted(SOURCES), help="source(s) to ingest (default: all)")
     p.add_argument("--format", action="append", metavar="CODE", help="only events matching this formats.code (repeatable; default: all)")
     p.add_argument("--since", type=lambda s: datetime.strptime(s, "%Y-%m-%d").date(), help="only events on/after YYYY-MM-DD")
+    p.add_argument("--before", type=lambda s: datetime.strptime(s, "%Y-%m-%d").date(), help="only events before YYYY-MM-DD (combine with --since for a window)")
     p.add_argument("--db-url", default=os.environ.get("DATABASE_URL", LOCAL_DB_URL), help="target DB (default: $DATABASE_URL or local)")
     p.add_argument("--snapshot", action="store_true", help="also write supabase/seeds/tournaments.sql")
     p.add_argument("--from-cache", action="store_true", help="re-ingest from scripts/_tournament_cache instead of the network")
@@ -287,6 +288,8 @@ def main(argv=None):
     formats = {f.lower() for f in args.format} if args.format else None
     resolver = Resolver.from_db(args.db_url)
 
+    before = args.before.isoformat() if args.before else None  # upper bound; sources apply it during the crawl, this also bounds the --from-cache path
+
     unresolved: Counter = Counter()
     parts: list[str] = []  # per-event SQL, accumulated for the optional snapshot
     applied = failed = 0
@@ -297,7 +300,7 @@ def main(argv=None):
             stream = load_cache(n, args.cache_dir, args.since)
         else:
             print(f"Fetching from {n}...", file=sys.stderr)
-            stream = SOURCES[n].fetch(args.since, formats)
+            stream = SOURCES[n].fetch(args.since, args.before, formats)
         # Like the per-event DB apply below, the cache is persisted as we go:
         # flushed every CACHE_FLUSH_SECS and once more in the finally, so a long,
         # rate-limited run updates its cache file live and an interrupt (or crash)
@@ -309,6 +312,8 @@ def main(argv=None):
         try:
             for t in stream:
                 if formats is not None and (t.format or "").lower() not in formats:
+                    continue
+                if before and t.held_on and t.held_on >= before:
                     continue
                 fetched.append(t)
                 sql = tournament_sql(t, resolver, unresolved)

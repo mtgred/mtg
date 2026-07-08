@@ -178,7 +178,7 @@ def _list_rows(path: str, page: int, today: date) -> list[tuple[str, str, date |
     return out
 
 
-def fetch(since: date | None, formats: set[str] | None = None):
+def fetch(since: date | None, before: date | None = None, formats: set[str] | None = None):
     """Yield mtgdecks.net events held on/after ``since`` (default: the last week).
 
     ``formats`` (a set of ``formats.code`` values from ``--format``) narrows the
@@ -208,6 +208,8 @@ def fetch(since: date | None, formats: set[str] | None = None):
                 if approx and approx < start:
                     stop = True  # date-desc list: everything below is older
                     break
+                if before and approx and approx >= before:
+                    continue  # date-desc list: too new for the window, keep scanning down
                 if is_mtgo or ext_id in seen:  # mtgo.com events come from the mtgo source
                     continue
                 seen.add(ext_id)
@@ -215,6 +217,8 @@ def fetch(since: date | None, formats: set[str] | None = None):
                 html = _get(BASE + href)
                 held = m.group(1) if (m := _HELD_RE.search(html)) else None
                 if held and held < start.isoformat():
+                    continue
+                if before and held and held >= before.isoformat():
                     continue
                 decks = _decks(html)
                 if not decks:
