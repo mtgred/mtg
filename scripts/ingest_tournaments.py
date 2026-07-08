@@ -143,6 +143,27 @@ class Resolver:
         return self.front.get(name)
 
 
+def load_tracked_formats(db_url: str) -> set[str]:
+    """Format codes we ingest for — the `formats` table.
+
+    Events whose source format resolves to anything outside this set are niche
+    MTG formats or other games entirely (Star Wars: Unlimited, MTGO joke/limited
+    events, MOCS multi-format showcases…). They're skipped rather than stored
+    with a NULL format, where they'd otherwise pollute the meta pages. An empty
+    set (DB unreachable) disables the filter so a broken lookup never silently
+    drops every event.
+    """
+    try:
+        out = subprocess.run(
+            ["psql", db_url, "-tAc", "select code from formats"],
+            capture_output=True, text=True, check=True,
+        ).stdout
+    except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+        print(f"warning: could not load formats ({exc}); ingesting all formats", file=sys.stderr)
+        return set()
+    return {line for line in out.splitlines() if line}
+
+
 def tournament_from_dict(d: dict) -> Tournament:
     decks = [Deck(cards=[DeckCard(**c) for c in dk.pop("cards", [])], **dk) for dk in d.pop("decks", [])]
     return Tournament(decks=decks, **d)
@@ -242,6 +263,17 @@ def report_unresolved(unresolved: Counter) -> None:
     )
 
 
+def report_skipped(skipped: Counter) -> None:
+    if not skipped:
+        return
+    top = ", ".join(f"{f} (x{c})" for f, c in skipped.most_common(8))
+    print(
+        f"  skipped {sum(skipped.values())} events in untracked formats: {top}"
+        + (" ..." if len(skipped) > 8 else ""),
+        file=sys.stderr,
+    )
+
+
 def apply_sql(sql: str, db_url: str) -> None:
     subprocess.run(
         ["psql", db_url, "-v", "ON_ERROR_STOP=1", "-q", "-f", "-"],
@@ -287,10 +319,12 @@ def main(argv=None):
     names = args.source or sorted(SOURCES)
     formats = {f.lower() for f in args.format} if args.format else None
     resolver = Resolver.from_db(args.db_url)
+    tracked = load_tracked_formats(args.db_url)
 
     before = args.before.isoformat() if args.before else None  # upper bound; sources apply it during the crawl, this also bounds the --from-cache path
 
     unresolved: Counter = Counter()
+    skipped_format: Counter = Counter()  # events dropped for a niche/non-MTG format
     parts: list[str] = []  # per-event SQL, accumulated for the optional snapshot
     applied = failed = 0
 
@@ -311,6 +345,11 @@ def main(argv=None):
         last_flush = time.monotonic()
         try:
             for t in stream:
+                # Drop niche/non-MTG events (unrecognized format -> not in the
+                # formats table) so they don't land with a NULL format.
+                if tracked and t.format not in tracked:
+                    skipped_format[t.format or "(none)"] += 1
+                    continue
                 if formats is not None and (t.format or "").lower() not in formats:
                     continue
                 if before and t.held_on and t.held_on >= before:
@@ -342,6 +381,7 @@ def main(argv=None):
                 write_snapshot(snapshot_sql(parts), len(parts))
 
     report_unresolved(unresolved)
+    report_skipped(skipped_format)
 
     if not parts:
         print("No tournaments fetched; nothing to do.", file=sys.stderr)

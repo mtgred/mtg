@@ -23,7 +23,7 @@ from datetime import date
 from typing import Iterable, Protocol
 
 HEADERS = {
-    "User-Agent": "manaring-tournament-ingest/1.0 (https://github.com/mtgred/mtg)",
+    "User-Agent": "tournament-ingest/1.0",
     "Accept": "text/html,application/json",
 }
 REQUEST_DELAY = 0.1  # polite delay between requests
