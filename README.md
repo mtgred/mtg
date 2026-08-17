@@ -12,6 +12,7 @@ committed seed.
 - `scripts/` — stdlib-only Python data tooling (no dependencies):
   - `generate_seed.py` — fetches Scryfall data into `supabase/seed.sql`.
   - `ingest_tournaments.py` — ingests competitive results (see below).
+  - `delete_tournament.py` — removes a tournament everywhere it's stored (see below).
   - `ingest_goatbots_prices.py` — refreshes MTGO prices from Goatbots (see below).
 
 ## Getting started
@@ -129,6 +130,50 @@ In short: the **cache** (`_tournament_cache/`, gitignored) stores the raw fetche
 source data so you can re-run ingestion offline, while the **snapshot**
 (`supabase/seeds/tournaments.sql`, committed) is the SQL that `supabase db reset`
 reloads automatically.
+
+### Deleting a tournament
+
+A bogus event — a duplicate, a junk import, something filed under the wrong
+format — is stored in three places, and clearing only the database means it
+walks straight back in on the next `supabase db reset`. `scripts/delete_tournament.py`
+handles all three: the `tournaments` row (whose `ON DELETE CASCADE` foreign keys
+take its decks and deck cards with it), the event's block in the committed
+`supabase/seeds/tournaments.sql`, and its entry in the disk cache.
+
+Targets are either the id in the app's URL (`…/tournaments/30`) or the stable
+`source/external_id` identity, which — unlike the serial id — survives a reseed:
+
+```bash
+# Preview what would go, changing nothing
+python scripts/delete_tournament.py 30 --dry-run
+
+# Delete it (prompts for confirmation; -y skips the prompt)
+python scripts/delete_tournament.py 30
+
+# By source identity, and several at once
+python scripts/delete_tournament.py spellbinder/2921762 -y
+python scripts/delete_tournament.py 30 31 spellbinder/2921839
+
+# Production — same command, different target
+DATABASE_URL="$SUPABASE_DB_URL" python scripts/delete_tournament.py 30
+```
+
+Each matching event is printed with its deck and deck-card counts before
+anything is deleted. Given a `source/external_id` that's already gone from the
+database, the script still purges the seed and cache — precisely the state that
+would otherwise resurrect it.
+
+| Option | Description |
+| --- | --- |
+| `--dry-run` | Report what would be deleted; change nothing. |
+| `-y`, `--yes` | Skip the confirmation prompt. |
+| `--keep-seed` | Leave `supabase/seeds/tournaments.sql` alone. |
+| `--keep-cache` | Leave `scripts/_tournament_cache/` alone. |
+| `--db-url URL` | Target database. Default: `$DATABASE_URL` or the local Supabase DB. |
+| `--cache-dir PATH` | Cache location. Default: `scripts/_tournament_cache/`. |
+
+This does not stop a later `ingest_tournaments.py` run from re-fetching the
+event from its source; for that it has to be filtered out at ingest time.
 
 ### Adding a source
 
