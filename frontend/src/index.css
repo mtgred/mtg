@@ -653,9 +653,6 @@ main {
     @apply mb-0;
   }
 }
-.deck-head-player {
-  @apply text-text-dim;
-}
 .deck-head-field {
   @apply text-text-faint;
 }

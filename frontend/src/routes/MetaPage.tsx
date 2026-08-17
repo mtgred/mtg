@@ -490,7 +490,7 @@ function SearchTab({
   playerCounts: Map<number, number>
   kindsQuery: string
 }) {
-  const { sorted, sort, toggle } = useSort(decks, searchSort, { key: "placement", dir: "asc" })
+  const { sorted, sort, toggle } = useSort(decks, searchSort, { key: "date", dir: "desc" })
   return (
     <>
       <div className="mb-5 flex flex-wrap items-center gap-3 [&_.search-field]:ml-0 [&_.search-field]:w-96">
@@ -506,8 +506,14 @@ function SearchTab({
         <table className="standings">
           <thead>
             <tr>
+              <SortTh col="date" sort={sort} toggle={toggle} className="standings-record">
+                Date
+              </SortTh>
               <SortTh col="placement" sort={sort} toggle={toggle} className="standings-rank standings-record">
                 Rank
+              </SortTh>
+              <SortTh col="wins" sort={sort} toggle={toggle} className="standings-record">
+                Record
               </SortTh>
               <SortTh col="archetype" sort={sort} toggle={toggle}>
                 Deck
@@ -515,35 +521,29 @@ function SearchTab({
               <SortTh col="player" sort={sort} toggle={toggle}>
                 Player
               </SortTh>
-              <SortTh col="wins" sort={sort} toggle={toggle} className="standings-record">
-                Record
-              </SortTh>
               <SortTh col="tournament" sort={sort} toggle={toggle}>
                 Tournament
-              </SortTh>
-              <SortTh col="date" sort={sort} toggle={toggle} className="standings-record">
-                Date
               </SortTh>
             </tr>
           </thead>
           <tbody>
             {sorted.map(d => (
               <tr key={d.id}>
+                <td className="standings-record">{d.tournament_held_on ? formatDate(d.tournament_held_on) : "—"}</td>
                 <td className="standings-rank standings-record">
                   {d.placement ?? "—"}
                   {playerCounts.has(d.tournament_id) && `/${playerCounts.get(d.tournament_id)}`}
                 </td>
+                <td className="standings-record">{record(d) ?? "—"}</td>
                 <td>
                   <Link to={`/${format}/tournaments/${d.tournament_id}/decks/${d.id}`}>{d.archetype ?? "Other"}</Link>
                 </td>
                 <td>
                   <Link to={`/${format}/search?player=${encodeURIComponent(d.player)}${kindsQuery}`}>{d.player}</Link>
                 </td>
-                <td className="standings-record">{record(d) ?? "—"}</td>
                 <td>
                   <Link to={`/${format}/tournaments/${d.tournament_id}`}>{d.tournament_name ?? "—"}</Link>
                 </td>
-                <td className="standings-record">{d.tournament_held_on ? formatDate(d.tournament_held_on) : "—"}</td>
               </tr>
             ))}
           </tbody>

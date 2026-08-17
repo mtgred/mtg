@@ -6,7 +6,7 @@ export function formatDate(iso: string | null | undefined): string {
   if (!iso) return ""
   const d = new Date(iso + "T00:00:00")
   if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleDateString("en-GB", { year: "2-digit", month: "2-digit", day: "2-digit" })
+  return d.toLocaleDateString("en-GB", { year: "2-digit", month: "short", day: "2-digit" })
 }
 
 export function titleCase(value: string | null | undefined): string {

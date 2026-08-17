@@ -123,7 +123,7 @@ export default function TournamentDeckPage() {
       <header className="deck-head">
         <div className="deck-head-top">
           <h2>{deck.archetype ?? `${deck.player}'s deck`}</h2>
-          <Link className="deck-head-player" to={`/${format || "modern"}/search?q=${encodeURIComponent(deck.player)}`}>
+          <Link to={`/${format || "modern"}/search?q=${encodeURIComponent(deck.player)}`}>
             {deck.player}
           </Link>
           {deck.placement != null && (
@@ -135,22 +135,18 @@ export default function TournamentDeckPage() {
             <span className="deck-head-record">
               {deck.wins ?? 0}-{deck.losses ?? 0}-{deck.draws ?? 0}
             </span>)}
+          {deck.tournaments?.held_on && <span>{formatDate(deck.tournaments.held_on)}</span>}
         </div>
       </header>
 
-      {entries.length === 0 ? (
-        <p className="muted">This decklist was not recorded.</p>
-      ) : (
-        <DeckViews entries={entries} printings={printings} cheapest={cheapest} />
-      )}
+      {entries.length === 0 ? <p className="muted">This decklist was not recorded.</p> :
+        <DeckViews entries={entries} printings={printings} cheapest={cheapest} />}
 
       {siblings.length > 1 && (
         <section className="deck-siblings">
           <h2 className="deck-board-head">
             {tournamentName}
-            {deck.tournaments?.held_on && (
-              <span className="deck-sibling-date">{formatDate(deck.tournaments.held_on)}</span>
-            )}
+            {deck.tournaments?.held_on && <span className="deck-sibling-date">{formatDate(deck.tournaments.held_on)}</span>}
           </h2>
           <ol className="deck-sibling-list">
             {siblings.map(s => {
@@ -164,11 +160,10 @@ export default function TournamentDeckPage() {
                   <span className="deck-sibling-rank">{s.placement ?? "—"}</span>
                   <span className="deck-sibling-record">{record}</span>
                   <span className="deck-sibling-name">
-                    {current ? label : (
+                    {current ? label :
                       <Link to={`/${format || "modern"}/tournaments/${deck.tournament_id}/decks/${s.id}`}>
                         {label}
-                      </Link>
-                    )}
+                      </Link>}
                   </span>
                   <span className="deck-sibling-player">
                     <Link to={`/${format || "modern"}/search?q=${encodeURIComponent(s.player)}`}>{s.player}</Link>
