@@ -116,9 +116,7 @@ export default function TournamentPage() {
         </div>
       </header>
 
-      {standings.length === 0 ? (
-        <p className="muted">No results recorded for this tournament yet.</p>
-      ) : (
+      {standings.length === 0 ? <p className="muted">No results recorded for this tournament yet.</p> :
         <table className="standings">
           <thead>
             <tr>
@@ -136,13 +134,11 @@ export default function TournamentPage() {
                 <tr key={s.id}>
                   <td className="standings-rank">{s.placement ?? "—"}</td>
                   <td>
-                    {cardCount > 0 ? (
+                    {cardCount > 0 ?
                       <Link to={`/${formatCode || "modern"}/tournaments/${tournament.id}/decks/${s.id}`}>
                         {s.archetype ?? "Other"}
                       </Link>
-                    ) : (
-                      <span>{s.archetype ?? "—"}</span>
-                    )}
+                     : <span>{s.archetype ?? "—"}</span>}
                   </td>
                   <td>
                     <Link to={`/${formatCode || "modern"}/search?q=${encodeURIComponent(s.player)}`}>{s.player}</Link>
@@ -152,8 +148,7 @@ export default function TournamentPage() {
               )
             })}
           </tbody>
-        </table>
-      )}
+        </table>}
     </div>
   )
 }

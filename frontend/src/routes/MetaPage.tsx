@@ -50,6 +50,20 @@ const KINDS: { id: Kind; label: string }[] = [
 ]
 const ALL_KINDS = KINDS.map(k => k.id)
 
+// How deep a "top finish" runs for a given field size — the winner alone for 8–15
+// players, doubling every doubling of the field, capped at top 32. Events under 8
+// players (and those with no reported size) don't qualify at all, and score 0.
+const TOP_CUTS: [number, number][] = [
+  [256, 32],
+  [128, 16],
+  [64, 8],
+  [32, 4],
+  [16, 2],
+  [8, 1],
+]
+const topCut = (players: number | undefined) =>
+  players == null ? 0 : (TOP_CUTS.find(([min]) => players >= min)?.[1] ?? 0)
+
 type MetaData = {
   format: Format | null
   tournaments: MetaTournament[]
@@ -170,32 +184,42 @@ export default function MetaPage() {
     [data, kindById, activeKinds]
   )
 
-  // Archetype share across every finish, best placement broken out.
-  const archetypes = useMemo(() => {
-    const map = new Map<string, { name: string; count: number; wins: number; games: number }>()
+  // tournament_id -> player_count, for showing "placement/players" in search and
+  // for sizing each event's top cut.
+  const playerCounts = useMemo(() => {
+    const m = new Map<number, number>()
+    for (const t of data?.tournaments ?? []) if (t.player_count != null) m.set(t.id, t.player_count)
+    return m
+  }, [data])
+
+  // Archetype share across every finish, plus its share of the top finishes
+  // (`top` / `topTotal`) — a size-weighted signal that ignores the long tail of
+  // small events and mid-field decks.
+  const { archetypes, topTotal } = useMemo(() => {
+    const map = new Map<string, Archetype>()
+    let topTotal = 0
     for (const d of decks) {
       const name = d.archetype ?? "Other"
-      const e = map.get(name) ?? { name, count: 0, wins: 0, games: 0 }
+      const e = map.get(name) ?? { name, count: 0, wins: 0, games: 0, top: 0 }
       e.count++
       e.wins += d.wins ?? 0
       e.games += (d.wins ?? 0) + (d.losses ?? 0) + (d.draws ?? 0)
+      const cut = topCut(playerCounts.get(d.tournament_id))
+      if (d.placement != null && d.placement <= cut) {
+        e.top++
+        topTotal++
+      }
       map.set(name, e)
     }
-    return [...map.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
-  }, [decks])
+    const archetypes = [...map.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+    return { archetypes, topTotal }
+  }, [decks, playerCounts])
 
   const deckCounts = useMemo(() => {
     const m = new Map<number, number>()
     for (const d of decks) m.set(d.tournament_id, (m.get(d.tournament_id) ?? 0) + 1)
     return m
   }, [decks])
-
-  // tournament_id -> player_count, for showing "placement/players" in search.
-  const playerCounts = useMemo(() => {
-    const m = new Map<number, number>()
-    for (const t of data?.tournaments ?? []) if (t.player_count != null) m.set(t.id, t.player_count)
-    return m
-  }, [data])
 
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -262,7 +286,14 @@ export default function MetaPage() {
       {error && <p className="error">{error}</p>}
 
       {data && tab === "meta" && (
-        <MetaTab archetypes={archetypes} total={decks.length} formatName={formatName} format={format} kindsQuery={kindsQuery} />
+        <MetaTab
+          archetypes={archetypes}
+          total={decks.length}
+          topTotal={topTotal}
+          formatName={formatName}
+          format={format}
+          kindsQuery={kindsQuery}
+        />
       )}
       {data && tab === "tournaments" && (
         <TournamentsTab tournaments={tournaments} counts={deckCounts} format={format} />
@@ -289,12 +320,14 @@ export default function MetaPage() {
 function MetaTab({
   archetypes,
   total,
+  topTotal,
   formatName,
   format,
   kindsQuery,
 }: {
-  archetypes: { name: string; count: number; wins: number; games: number }[]
+  archetypes: Archetype[]
   total: number
+  topTotal: number
   formatName: string
   format: string
   kindsQuery: string
@@ -304,7 +337,7 @@ function MetaTab({
       {total === 0 ? (
         <p className="muted">No decks recorded for {formatName} yet.</p>
       ) : (
-        <MetaList archetypes={archetypes} total={total} format={format} kindsQuery={kindsQuery} />
+        <MetaList archetypes={archetypes} total={total} topTotal={topTotal} format={format} kindsQuery={kindsQuery} />
       )}
       <p className="mt-5 text-sm">
         <Link to={`/${format}/archetypes`}>Archetype classifier rules →</Link>
@@ -313,21 +346,27 @@ function MetaTab({
   )
 }
 
-type Archetype = { name: string; count: number; wins: number; games: number }
+type Archetype = { name: string; count: number; wins: number; games: number; top: number }
 const archetypeSort = {
   name: (a: Archetype) => a.name,
   count: (a: Archetype) => a.count,
+  top: (a: Archetype) => a.top,
+  // Ranks the same as the displayed (top share / share − 1): the two denominators
+  // are constants across rows, so top-per-deck is an order-preserving stand-in.
+  relative: (a: Archetype) => a.top / a.count,
   winrate: (a: Archetype) => (a.games > 0 ? a.wins / a.games : null),
 }
 
 function MetaList({
   archetypes,
   total,
+  topTotal,
   format,
   kindsQuery,
 }: {
   archetypes: Archetype[]
   total: number
+  topTotal: number
   format: string
   kindsQuery: string
 }) {
@@ -343,7 +382,13 @@ function MetaList({
             Decks
           </SortTh>
           <SortTh col="count" sort={sort} toggle={toggle} className="standings-record">
-            Share
+            Meta %
+          </SortTh>
+          <SortTh col="top" sort={sort} toggle={toggle} className="standings-record">
+            Top %
+          </SortTh>
+          <SortTh col="relative" sort={sort} toggle={toggle} className="standings-record">
+            Relative top %
           </SortTh>
           <SortTh col="winrate" sort={sort} toggle={toggle} className="standings-record">
             Win rate
@@ -352,14 +397,23 @@ function MetaList({
       </thead>
       <tbody>
         {sorted.map(a => {
-          const share = ((a.count / total) * 100).toFixed(1)
+          const share = a.count / total
+          const topShare = topTotal > 0 ? a.top / topTotal : null
+          // How much the archetype over- or under-performs its raw share once the
+          // field is restricted to top finishes: +50% means it takes half again as
+          // many top slots as its overall presence would predict.
+          const relative = topShare == null ? null : topShare / share - 1
           return (
             <tr key={a.name}>
               <td>
                 <Link to={`/${format}/search?archetype=${encodeURIComponent(a.name)}${kindsQuery}`}>{a.name}</Link>
               </td>
               <td className="standings-record">{a.count}</td>
-              <td className="standings-record">{share}%</td>
+              <td className="standings-record">{(share * 100).toFixed(1)}%</td>
+              <td className="standings-record">{topShare == null ? "—" : `${(topShare * 100).toFixed(1)}%`}</td>
+              <td className="standings-record">
+                {relative == null ? "—" : `${relative > 0 ? "+" : ""}${(relative * 100).toFixed(1)}%`}
+              </td>
               <td className="standings-record">{a.games > 0 ? `${((a.wins / a.games) * 100).toFixed(1)}%` : "—"}</td>
             </tr>
           )
