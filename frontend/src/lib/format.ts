@@ -54,3 +54,16 @@ export function listPrices(prices: Prices | null | undefined): { label: string; 
   ]
   return entries.filter((e): e is [string, string] => e[1] != null).map(([label, value]) => ({ label, value }))
 }
+
+// Display name for a `tournaments.source` key (see scripts/tournament_sources).
+const SOURCE_NAMES: Record<string, string> = {
+  mtgo: "MTGO",
+  melee: "Melee.gg",
+  topdeck: "Topdeck.gg",
+  mtgdecks: "MTGDecks.net",
+  spellbinder: "Spellbinder.gg",
+}
+
+export function sourceName(source: string | null | undefined): string {
+  return (source && SOURCE_NAMES[source]) || "Source"
+}

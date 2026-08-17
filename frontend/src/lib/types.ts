@@ -100,6 +100,7 @@ export type Tournament = {
   format: string | null
   held_on: string | null
   location: string | null
+  source: string | null
   source_url: string | null
   player_count: number | null
 }

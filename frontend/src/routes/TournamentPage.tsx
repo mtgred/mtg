@@ -1,7 +1,7 @@
 import { Link, useParams } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 import { useAsync } from "../lib/useAsync"
-import { formatDate } from "../lib/format"
+import { formatDate, sourceName } from "../lib/format"
 import type { Format, Tournament, TournamentDeck } from "../lib/types"
 
 // A standing row: the player's finish plus a count of their recorded cards, used
@@ -98,24 +98,22 @@ export default function TournamentPage() {
       </p>
 
       <header className="set-head">
-        <div>
+        <div className="flex-1">
           <h1>{tournament.name}</h1>
           <p className="set-head-meta">
-            {format && (
+            {format &&
               <Link to={`/formats/${format.code}`} className="code-badge">
                 {format.name}
-              </Link>
-            )}
+              </Link>}
             {tournament.held_on && <span>{formatDate(tournament.held_on)}</span>}
             {tournament.location && <span>{tournament.location}</span>}
             {tournament.player_count != null && <span>{tournament.player_count} players</span>}
+            {tournament.source_url &&
+              <span className="ml-auto">
+                Source: <a href={tournament.source_url} target="_blank" rel="noreferrer">{sourceName(tournament.source)}</a>
+              </span>}
           </p>
         </div>
-        {tournament.source_url && (
-          <a className="ext-link" href={tournament.source_url} target="_blank" rel="noreferrer">
-            Coverage ↗
-          </a>
-        )}
       </header>
 
       {standings.length === 0 ? (
