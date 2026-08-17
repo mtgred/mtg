@@ -41,7 +41,6 @@ STANDINGS_URL = "https://melee.gg/Standing/GetRoundStandings"
 DECK_URL = "https://melee.gg/Decklist/View/{id}"
 
 PAGE = 25  # DataTables page size both POST endpoints expect
-MAX_DECKS = 64  # deck pages fetched per event (top finishers); standings are rank-ordered
 DEFAULT_DAYS = 7  # window when --since is omitted
 # melee marks events "Ended" lazily; treat anything older than this as ended too.
 ENDED_AFTER_DAYS = 5
@@ -248,8 +247,6 @@ def fetch(since: date | None, before: date | None = None, formats: set[str] | No
 
         decks = []
         for e in entries:
-            if len(decks) >= MAX_DECKS:
-                break
             dls = e.get("Decklists") or []
             deck_id = next((d.get("DecklistId") for d in dls if d.get("DecklistId")), None)
             if not deck_id:

@@ -33,7 +33,6 @@ API_URL = "https://topdeck.gg/api/v2/tournaments"
 BRACKET_URL = "https://topdeck.gg/bracket/{tid}"
 GAME = "Magic: The Gathering"
 DEFAULT_DAYS = 7  # window when --since is omitted
-MAX_DECKS = 64  # decks kept per event (standings are placement-ordered), matching the other sources
 
 # topdeck format name (case-sensitive, per the API docs) -> formats.code
 FORMATS = {
@@ -90,8 +89,10 @@ def _cards_from_text(text: str) -> list[DeckCard]:
 
 
 def _decks(standings: list[dict]) -> list[Deck]:
+    """Every standing that carries a parseable list — the API already sent them
+    all in the one POST, so there's nothing to save by keeping only the top N."""
     decks = []
-    for placement, s in enumerate(standings[:MAX_DECKS], 1):
+    for placement, s in enumerate(standings, 1):
         obj = s.get("deckObj")
         cards = _cards_from_obj(obj) if isinstance(obj, dict) else _cards_from_text(s.get("decklist") or "")
         if not cards:

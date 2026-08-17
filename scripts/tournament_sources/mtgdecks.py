@@ -62,7 +62,6 @@ FORMATS = {
 
 DEFAULT_DAYS = 7  # window when --since is omitted
 MAX_PAGES = 40  # safety cap per format (each page lists ~20 events)
-MAX_DECKS = 64  # deck pages fetched per event; standings are rank-ordered
 DELAY = 1.2  # seconds between requests: the site 429s sustained bursts faster than ~1/s
 
 _ROW_RE = re.compile(r"<tr[^>]*>.*?</tr>", re.S)
@@ -133,8 +132,6 @@ def _decks(event_html: str) -> list[Deck]:
     decks = []
     rows = _ROW_RE.findall(_table(event_html, '<table class="clickable table table-striped">'))
     for i, row in enumerate(rows, 0):  # row 0 is the header
-        if len(decks) >= MAX_DECKS:
-            break
         link = _DECK_LINK_RE.search(row)
         if not link:
             continue
