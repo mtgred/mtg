@@ -51,7 +51,7 @@ import time
 from datetime import date, timedelta
 from itertools import count
 
-from .base import Deck, DeckCard, Tournament, http_get, log
+from .base import Deck, DeckCard, Tournament, archetype_label, http_get, log
 
 name = "spellbinder"
 
@@ -184,7 +184,12 @@ def _decks(slug: str) -> list[Deck]:
         out.append(
             Deck(
                 player=d.get("player") or "Unknown",
-                archetype=d.get("archetype") or d.get("deck_title"),
+                # Their classifier falls back to a bare color identity ("W",
+                # "WUBRG") when it can't place a deck, while `deck_title` keeps
+                # the human name ("White Weenie") — so take whichever actually
+                # names a deck, classifier first (it normalizes "Burn" to
+                # "Sligh"), and store nothing when neither does.
+                archetype=archetype_label(d.get("archetype"), d.get("deck_title")),
                 placement=d.get("placement"),
                 wins=wins,
                 losses=losses,

@@ -82,7 +82,7 @@ Supabase database; override it with `--db-url` or the `DATABASE_URL` env var.
 
 | Option | Description |
 | --- | --- |
-| `--source NAME` | Source(s) to ingest; repeatable. Default: all (`mtgo`, `melee`, `mtgdecks`, `topdeck`). |
+| `--source NAME` | Source(s) to ingest; repeatable. Default: all (`mtgo`, `melee`, `mtgdecks`, `topdeck`, `spellbinder`). |
 | `--format CODE` | Only events matching this `formats.code` (e.g. `modern`); repeatable. Default: all. Events with no format are excluded when set. |
 | `--since YYYY-MM-DD` | Only events held on or after this date. |
 | `--db-url URL` | Target database. Default: `$DATABASE_URL` or the local Supabase DB. |
