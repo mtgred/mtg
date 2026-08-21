@@ -55,7 +55,7 @@ from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from tournament_sources import SOURCES, Deck, DeckCard, Tournament  # noqa: E402
+from tournament_sources import SOURCES, Deck, DeckCard, Tournament, archetype_label  # noqa: E402
 
 LOCAL_DB_URL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
 ROOT = Path(__file__).resolve().parent.parent
@@ -92,6 +92,14 @@ def num(value) -> str:
     return "null" if value in (None, "") else str(int(value))
 
 
+def query(db_url: str, sql: str) -> set[str]:
+    """Run a single-column query and return its non-empty values."""
+    out = subprocess.run(
+        ["psql", db_url, "-tAc", sql], capture_output=True, text=True, check=True,
+    ).stdout
+    return {line for line in out.splitlines() if line}
+
+
 class Resolver:
     """Maps a source's card name to the canonical ``cards.name``.
 
@@ -110,10 +118,17 @@ class Resolver:
 
     A name that still doesn't match is genuinely absent from the dataset (e.g. a
     card newer than the seed) and is returned as ``None`` to be reported.
+
+    It also carries the set of canonical land names (front face is a land, so a
+    modal DFC like "Agadeem's Awakening // Agadeem, the Undercrypt" counts as a
+    spell) so ``tournament_sql`` can drop land-only decks.
     """
 
-    def __init__(self, names: set[str]):
+    LANDS = "select name from cards where split_part(type_line, ' // ', 1) like '%Land%'"
+
+    def __init__(self, names: set[str], lands: set[str] = frozenset()):
         self.exact = names
+        self.lands = lands
         self.front: dict[str, str] = {}
         for n in names:
             if " // " in n:
@@ -122,14 +137,10 @@ class Resolver:
     @classmethod
     def from_db(cls, db_url: str) -> "Resolver":
         try:
-            out = subprocess.run(
-                ["psql", db_url, "-tAc", "select name from cards"],
-                capture_output=True, text=True, check=True,
-            ).stdout
+            return cls(query(db_url, "select name from cards"), query(db_url, cls.LANDS))
         except (subprocess.CalledProcessError, FileNotFoundError) as exc:
             print(f"warning: could not load card names ({exc}); using exact names only", file=sys.stderr)
             return cls(set())
-        return cls({line for line in out.splitlines() if line})
 
     def resolve(self, name: str) -> str | None:
         if not self.exact:  # index unavailable — defer to the SQL name join
@@ -154,14 +165,10 @@ def load_tracked_formats(db_url: str) -> set[str]:
     drops every event.
     """
     try:
-        out = subprocess.run(
-            ["psql", db_url, "-tAc", "select code from formats"],
-            capture_output=True, text=True, check=True,
-        ).stdout
+        return query(db_url, "select code from formats")
     except (subprocess.CalledProcessError, FileNotFoundError) as exc:
         print(f"warning: could not load formats ({exc}); ingesting all formats", file=sys.stderr)
         return set()
-    return {line for line in out.splitlines() if line}
 
 
 def tournament_from_dict(d: dict) -> Tournament:
@@ -190,7 +197,7 @@ def write_cache(source: str, tournaments: list[Tournament], cache_dir: Path) -> 
     print(f"  cached {len(ordered)} events in {cache_dir / f'{source}.json'}", file=sys.stderr)
 
 
-def tournament_sql(t: Tournament, resolver: Resolver, unresolved: Counter) -> str:
+def tournament_sql(t: Tournament, resolver: Resolver, unresolved: Counter, land_only: Counter) -> str:
     """Idempotent SQL for one event: upsert the row, then rebuild its decks.
 
     Identity is ``(source, external_id)``. The event row is upserted; its decks
@@ -198,6 +205,10 @@ def tournament_sql(t: Tournament, resolver: Resolver, unresolved: Counter) -> st
     re-import always reflects the latest published list without duplicating.
     Each deck is inserted in a CTE that RETURNs its generated id, which the card
     rows then reference — no reliance on placement/player being unique.
+
+    Decks whose every card is a land are dropped entirely: some sources publish
+    a stub list (only the lands, or a lands-only "deck" placeholder) that carries
+    no archetype signal and would skew the meta pages.
     """
     key = f"source = {lit(t.source)} and external_id = {lit(t.external_id)}"
     # format is guarded by a subselect so an unmapped code inserts NULL rather
@@ -216,18 +227,6 @@ def tournament_sql(t: Tournament, resolver: Resolver, unresolved: Counter) -> st
         f"delete from tournament_decks where tournament_id = (select id from tournaments where {key});",
     ]
     for d in t.decks:
-        deck_cols = (
-            f"id, {lit(d.player)}, {lit(d.archetype)}, "
-            f"{num(d.placement)}, {num(d.wins)}, {num(d.losses)}, {num(d.draws)}"
-        )
-        deck_insert = (
-            "with d as (\n"
-            "  insert into tournament_decks"
-            " (tournament_id, player, archetype, placement, wins, losses, draws)\n"
-            f"  select {deck_cols} from tournaments where {key}\n"
-            "  returning id\n"
-            ")"
-        )
         # Resolve to canonical names, then collapse duplicate (name, board)
         # lines — sources may split one card across several printing entries (or
         # spellings) that resolve to the same cards row, which would otherwise
@@ -239,6 +238,25 @@ def tournament_sql(t: Tournament, resolver: Resolver, unresolved: Counter) -> st
                 unresolved[c.name] += 1
                 continue
             merged[(canon, c.board)] = merged.get((canon, c.board), 0) + c.quantity
+        if merged and all(n in resolver.lands for n, _ in merged):
+            land_only[t.source] += 1
+            continue
+        # Last guard on the reported label: a source (or a stale cache entry
+        # written before it learned better) may carry a color identity or an
+        # "Unknown" placeholder, which would surface as a bogus archetype in the
+        # meta pages. Store NULL instead — see base.archetype_label.
+        deck_cols = (
+            f"id, {lit(d.player)}, {lit(archetype_label(d.archetype))}, "
+            f"{num(d.placement)}, {num(d.wins)}, {num(d.losses)}, {num(d.draws)}"
+        )
+        deck_insert = (
+            "with d as (\n"
+            "  insert into tournament_decks"
+            " (tournament_id, player, archetype, placement, wins, losses, draws)\n"
+            f"  select {deck_cols} from tournaments where {key}\n"
+            "  returning id\n"
+            ")"
+        )
         if not merged:
             out.append(deck_insert + "\nselect 1 from d;")
             continue
@@ -261,6 +279,13 @@ def report_unresolved(unresolved: Counter) -> None:
         + (" ..." if len(unresolved) > 8 else ""),
         file=sys.stderr,
     )
+
+
+def report_land_only(land_only: Counter) -> None:
+    if not land_only:
+        return
+    by_source = ", ".join(f"{s} (x{c})" for s, c in land_only.most_common())
+    print(f"  skipped {sum(land_only.values())} land-only decks: {by_source}", file=sys.stderr)
 
 
 def report_skipped(skipped: Counter) -> None:
@@ -325,6 +350,7 @@ def main(argv=None):
 
     unresolved: Counter = Counter()
     skipped_format: Counter = Counter()  # events dropped for a niche/non-MTG format
+    land_only: Counter = Counter()  # decks dropped as lands-only stubs, by source
     parts: list[str] = []  # per-event SQL, accumulated for the optional snapshot
     applied = failed = 0
 
@@ -355,7 +381,7 @@ def main(argv=None):
                 if before and t.held_on and t.held_on >= before:
                     continue
                 fetched.append(t)
-                sql = tournament_sql(t, resolver, unresolved)
+                sql = tournament_sql(t, resolver, unresolved, land_only)
                 parts.append(sql)
                 if args.dry_run:
                     sys.stdout.write(f"begin;\n\n{sql}\n\ncommit;\n\n")
@@ -382,6 +408,7 @@ def main(argv=None):
 
     report_unresolved(unresolved)
     report_skipped(skipped_format)
+    report_land_only(land_only)
 
     if not parts:
         print("No tournaments fetched; nothing to do.", file=sys.stderr)

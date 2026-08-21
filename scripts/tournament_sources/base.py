@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import http.client
 import json
+import re
 import sys
 import time
 import urllib.error
@@ -37,6 +38,31 @@ RETRY_AFTER_CAP = 1800  # honor a server's Retry-After up to this long (mtgdecks
 # timeouts (TimeoutError), and malformed/short responses (other HTTPException
 # such as BadStatusLine / IncompleteRead).
 TRANSIENT_ERRORS = (http.client.HTTPException, ConnectionError, TimeoutError)
+
+
+# Labels that name no deck: a color identity ("W", "UB", "WUBRG") or a source's
+# placeholder for "we couldn't classify this". Aggregators fall back to these
+# when their own classifier comes up empty, and storing one is worse than storing
+# nothing — it reads as an archetype in the UI, matches no rule in
+# supabase/schemas/archetypes.sql, and inflates the archetype list with a row per
+# color combination. See `archetype_label`.
+_COLOR_CODE_RE = re.compile(r"^[WUBRGC]{1,5}$")
+_NON_LABELS = {"unknown", "other", "n/a", "na", "none", "-", "deck", "untitled"}
+
+
+def archetype_label(*candidates: str | None) -> str | None:
+    """First candidate that actually names a deck, else None.
+
+    Sources often carry more than one label per deck (a classifier field and a
+    free-text title, say); pass them in order of preference and this picks the
+    first meaningful one, so a junk value falls through to the next instead of
+    being stored.
+    """
+    for c in candidates:
+        c = (c or "").strip()
+        if c and c.lower() not in _NON_LABELS and not _COLOR_CODE_RE.match(c.upper()):
+            return c
+    return None
 
 
 @dataclass

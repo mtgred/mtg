@@ -32,8 +32,9 @@ async function loadTournament(id: string): Promise<TournamentData> {
     .order("placement", { ascending: true, nullsFirst: false })
   if (sErr) throw sErr
 
-  // Classifier-resolved archetype per deck (falls back to the reported label
-  // inside the view); see supabase/schemas/archetypes.sql.
+  // Resolved archetype per deck — the view keeps a reported label only when it
+  // names a curated archetype, so unlabeled decks read as "Other" rather than
+  // echoing a source-specific label. See supabase/schemas/archetypes.sql.
   const { data: labels, error: aErr } = await supabase.from("meta_decks").select("id,archetype").eq("tournament_id", id)
   if (aErr) throw aErr
   const archetypes = new Map((labels ?? []).map(l => [l.id as number, l.archetype as string | null]))
@@ -53,7 +54,7 @@ async function loadTournament(id: string): Promise<TournamentData> {
     format,
     standings: ((standings ?? []) as unknown as Standing[]).map(s => ({
       ...s,
-      archetype: archetypes.get(s.id) ?? s.archetype,
+      archetype: archetypes.get(s.id) ?? null,
     })),
   }
 }

@@ -64,8 +64,12 @@ FROM matches
 ORDER BY tournament_deck_id, matched DESC, sig_count DESC, sort_order NULLS LAST;
 
 -- Flattened feed the metagame UI reads: one row per finishing deck with its
--- resolved archetype (classifier first, reported free-text label as fallback)
--- and tournament context, so the frontend filters by `format` without embedding.
+-- resolved archetype and tournament context, so the frontend filters by `format`
+-- without embedding. The classifier wins; the source's reported free-text label
+-- is only kept when it names a curated archetype of the format (matched
+-- case-insensitively, displayed with the curated casing). Anything else — a
+-- source-specific label like "W" with no rule behind it — resolves to NULL, which
+-- the UI shows as "Other".
 CREATE VIEW meta_decks AS
 SELECT
   td.id,
@@ -75,7 +79,7 @@ SELECT
   td.wins,
   td.losses,
   td.draws,
-  coalesce(cl.archetype, td.archetype) AS archetype,
+  coalesce(cl.archetype, named.name) AS archetype,
   td.archetype AS reported_archetype,
   cl.archetype_id,
   t.format,
@@ -83,4 +87,5 @@ SELECT
   t.held_on AS tournament_held_on
 FROM tournament_decks td
 JOIN tournaments t ON t.id = td.tournament_id
-LEFT JOIN tournament_deck_archetypes cl ON cl.tournament_deck_id = td.id;
+LEFT JOIN tournament_deck_archetypes cl ON cl.tournament_deck_id = td.id
+LEFT JOIN archetypes named ON named.format = t.format AND lower(named.name) = lower(btrim(td.archetype));
