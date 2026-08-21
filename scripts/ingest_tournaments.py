@@ -21,6 +21,10 @@ run that errors out (or is interrupted) keeps everything ingested so far instead
 of rolling the whole batch back. A single event that fails to apply is reported
 and skipped rather than aborting the run.
 
+``--url`` ingests a single event straight from its mtgdecks.net page (repeatable)
+instead of crawling a source's listings — the way to pull in one specific result,
+or to re-import an event whose decklists have since been filled in.
+
 ``--snapshot`` additionally writes the generated SQL to
 supabase/seeds/tournaments.sql so the committed fixture that ``supabase db
 reset`` loads stays in sync with what you ingested locally. Like the cache, it is
@@ -63,6 +67,7 @@ SEED_PATH = ROOT / "supabase" / "seeds" / "tournaments.sql"
 CACHE_DIR = Path(__file__).resolve().parent / "_tournament_cache"  # gitignored (_*), one JSON per source
 CACHE_FLUSH_SECS = 30  # how often to persist the accumulating cache mid-run (also flushed on exit/interrupt)
 ENV_PATH = ROOT / ".env"  # gitignored KEY=VALUE file for secrets like TOPDECK_API_KEY
+URL_SOURCE = "mtgdecks"  # the one source that can fetch a single event by URL (--url)
 
 
 def load_env(path: Path = ENV_PATH) -> None:
@@ -326,6 +331,7 @@ def write_snapshot(sql: str, count: int) -> None:
 def parse_args(argv=None):
     p = argparse.ArgumentParser(description="Ingest tournament results into the database.")
     p.add_argument("--source", action="append", choices=sorted(SOURCES), help="source(s) to ingest (default: all)")
+    p.add_argument("--url", action="append", metavar="URL", help=f"ingest one {URL_SOURCE} event page by URL (repeatable); skips the crawl")
     p.add_argument("--format", action="append", metavar="CODE", help="only events matching this formats.code (repeatable; default: all)")
     p.add_argument("--since", type=lambda s: datetime.strptime(s, "%Y-%m-%d").date(), help="only events on/after YYYY-MM-DD")
     p.add_argument("--before", type=lambda s: datetime.strptime(s, "%Y-%m-%d").date(), help="only events before YYYY-MM-DD (combine with --since for a window)")
@@ -342,6 +348,10 @@ def main(argv=None):
     load_env()  # before parse_args so a .env DATABASE_URL feeds the --db-url default
     args = parse_args(argv)
     names = args.source or sorted(SOURCES)
+    if args.url:
+        if args.from_cache:
+            raise SystemExit("--url fetches from the network; it can't be combined with --from-cache")
+        names = [URL_SOURCE]  # one event page each, no crawl: --source/--since don't apply
     formats = {f.lower() for f in args.format} if args.format else None
     resolver = Resolver.from_db(args.db_url)
     tracked = load_tracked_formats(args.db_url)
@@ -355,7 +365,10 @@ def main(argv=None):
     applied = failed = 0
 
     for n in names:
-        if args.from_cache:
+        if args.url:
+            print(f"Fetching {len(args.url)} event(s) from {n} by URL...", file=sys.stderr)
+            stream = (SOURCES[n].fetch_url(u) for u in args.url)
+        elif args.from_cache:
             print(f"Loading {n} from cache...", file=sys.stderr)
             stream = load_cache(n, args.cache_dir, args.since)
         else:

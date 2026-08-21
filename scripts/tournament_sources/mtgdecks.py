@@ -76,6 +76,7 @@ _RECORD_RE = re.compile(r"\((\d+)\s*-\s*(\d+)(?:\s*-\s*(\d+))?\)")
 _ARCHETYPE_RE = re.compile(r'<td class="hidden-xs">\s*<span class="small">([^<]*)</span>')
 _PLAYER_RE = re.compile(r'class="text-capitalize">\s*by\s+(.*?)\s*</span>')
 _ARENA_RE = re.compile(r'<textarea id="arena_deck"[^>]*>(.*?)</textarea>', re.S)
+_URL_RE = re.compile(r"(?:https?://(?:www\.)?mtgdecks\.net)?/([^/]+)/([^/?#]*-tournament-(\d+))", re.I)
 
 BOARDS = {"deck": "main", "sideboard": "side", "commander": "commander", "companion": None}
 
@@ -161,6 +162,40 @@ def _decks(event_html: str) -> list[Deck]:
     return decks
 
 
+def _event(html: str, href: str, ext_id: str, fmt: str | None) -> Tournament | None:
+    """Build a Tournament from an event page; None when it posts no decklists."""
+    decks = _decks(html)
+    if not decks:
+        return None
+    return Tournament(
+        source=name,
+        external_id=ext_id,
+        name=unescape(re.sub(r"\s+", " ", m.group(1))).strip() if (m := _H1_RE.search(html)) else ext_id,
+        format=fmt,
+        held_on=m.group(1) if (m := _HELD_RE.search(html)) else None,
+        source_url=BASE + href,
+        player_count=int(m.group(1)) if (m := _PLAYERS_RE.search(html)) else None,
+        decks=decks,
+    )
+
+
+def fetch_url(url: str) -> Tournament:
+    """One event addressed by its mtgdecks.net URL, decks and records included.
+
+    The format comes from the URL's path segment (see FORMATS); an unrecognized
+    one gives a tournament with format None rather than failing.
+    """
+    m = _URL_RE.search(url.strip())
+    if not m:
+        raise SystemExit(f"Not an mtgdecks.net tournament URL: {url}")
+    href = f"/{m.group(1)}/{m.group(2)}"
+    fmt = next((code for path, code in FORMATS.items() if path.lower() == m.group(1).lower()), None)
+    event = _event(_get(BASE + href), href, m.group(3), fmt)
+    if not event:
+        raise SystemExit(f"No decklists found at {BASE}{href}")
+    return event
+
+
 def _list_rows(path: str, page: int, today: date) -> list[tuple[str, str, date | None, bool]]:
     """(href, external_id, approx_date, is_mtgo) per event row, newest first."""
     html = _get(LIST_URL.format(path=path, page=page))
@@ -217,20 +252,11 @@ def fetch(since: date | None, before: date | None = None, formats: set[str] | No
                     continue
                 if before and held and held >= before.isoformat():
                     continue
-                decks = _decks(html)
-                if not decks:
+                event = _event(html, href, ext_id, FORMATS[path])
+                if not event:
                     continue
-                print(f"\r    {href.rsplit('/', 1)[-1]} — {len(decks)} decks", file=sys.stderr)
-                yield Tournament(
-                    source=name,
-                    external_id=ext_id,
-                    name=unescape(re.sub(r"\s+", " ", m.group(1))).strip() if (m := _H1_RE.search(html)) else ext_id,
-                    format=FORMATS[path],
-                    held_on=held,
-                    source_url=BASE + href,
-                    player_count=int(m.group(1)) if (m := _PLAYERS_RE.search(html)) else None,
-                    decks=decks,
-                )
+                print(f"\r    {href.rsplit('/', 1)[-1]} — {len(event.decks)} decks", file=sys.stderr)
+                yield event
             if stop:
                 break
         print(file=sys.stderr)  # terminate any in-place counter line

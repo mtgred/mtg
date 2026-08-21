@@ -32,12 +32,19 @@ MAX_ATTEMPTS = 4  # total tries per request before giving up
 RETRY_BACKOFF = 2.0  # base seconds for exponential backoff between retries
 RETRY_STATUS = {429, 500, 502, 503, 504}  # transient HTTP statuses worth retrying
 RETRY_AFTER_CAP = 1800  # honor a server's Retry-After up to this long (mtgdecks meters deck pages in ~12-min windows)
+CHALLENGE_WAIT = 30  # backoff for a Cloudflare interstitial, which carries no Retry-After (see `challenges`)
 
 # Transient network failures that should be retried rather than aborting a long
 # run: dropped/reset connections (RemoteDisconnected, ConnectionError), read
 # timeouts (TimeoutError), and malformed/short responses (other HTTPException
 # such as BadStatusLine / IncompleteRead).
 TRANSIENT_ERRORS = (http.client.HTTPException, ConnectionError, TimeoutError)
+
+# Cloudflare answers a too-fast crawler with an interstitial challenge ("Just a
+# moment...") sent as 429 *without* a Retry-After — it is a rate signal, not a
+# quota, and it clears on its own once the caller eases off. Sources read this
+# running count to widen their own pacing mid-run; see mtgdecks._get.
+challenges = 0
 
 
 # Labels that name no deck: a color identity ("W", "UB", "WUBRG") or a source's
@@ -145,6 +152,11 @@ def http_post(url: str, data: dict, fatal: bool = True, headers: dict | None = N
     return _request(urllib.request.Request(_ascii(url), data=body, headers=merged), fatal)
 
 
+def _challenged(exc: Exception | None) -> bool:
+    """Is this failure a Cloudflare interstitial rather than a real response?"""
+    return (getattr(exc, "headers", None) or {}).get("Cf-Mitigated") == "challenge"
+
+
 def _request(req: urllib.request.Request, fatal: bool) -> str | None:
     """Perform the request, retrying transient failures with exponential backoff.
 
@@ -153,6 +165,7 @@ def _request(req: urllib.request.Request, fatal: bool) -> str | None:
     than killing a multi-hour ingest. A permanent failure (non-retryable 4xx, or
     retries exhausted) aborts when ``fatal``; otherwise it returns None.
     """
+    global challenges
     last: Exception | None = None
     for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
@@ -175,6 +188,9 @@ def _request(req: urllib.request.Request, fatal: bool) -> str | None:
             retry_after = (getattr(last, "headers", None) or {}).get("Retry-After", "")
             if retry_after.isdigit():  # rate-limited: the server says exactly how long to back off
                 wait = min(int(retry_after) + 1, RETRY_AFTER_CAP)
+            elif _challenged(last):  # no Retry-After to go on; a few seconds is never enough
+                challenges += 1
+                wait = max(wait, CHALLENGE_WAIT)
             log(f"  retry {attempt}/{MAX_ATTEMPTS - 1} for {req.full_url} in {wait:.0f}s ({last})")
             time.sleep(wait)
     if not fatal:

@@ -13,6 +13,7 @@ committed seed.
   - `generate_seed.py` — fetches Scryfall data into `supabase/seed.sql`.
   - `ingest_tournaments.py` — ingests competitive results (see below).
   - `delete_tournament.py` — removes a tournament everywhere it's stored (see below).
+  - `fetch_tournament.py` — dumps one mtgdecks.net event by URL (see below).
   - `ingest_goatbots_prices.py` — refreshes MTGO prices from Goatbots (see below).
 
 ## Getting started
@@ -39,9 +40,9 @@ changes are not applied live.
 ## Tournament ingestion
 
 `scripts/ingest_tournaments.py` pulls competitive results from external sources
-(currently `mtgo`, `melee`, `mtgdecks`, and `topdeck`), normalizes them, and
-upserts them into the database. The `topdeck` source uses topdeck.gg's free API
-and needs `TOPDECK_API_KEY` (get a key at <https://topdeck.gg/developers>) — set
+(currently `mtgo`, `melee`, `mtgdecks`, `topdeck`, and `spellbinder`), normalizes
+them, and upserts them into the database. The `topdeck` source uses topdeck.gg's
+free API and needs `TOPDECK_API_KEY` (get a key at <https://topdeck.gg/developers>) — set
 it in the environment or put `TOPDECK_API_KEY=...` in a gitignored `.env` file
 at the repo root, which the script loads; without it that source is skipped
 with a notice. The same command works locally and in production — only the target
@@ -67,6 +68,9 @@ python scripts/ingest_tournaments.py --source mtgo --since 2026-01-01
 # Only Modern events (repeat --format for several formats)
 python scripts/ingest_tournaments.py --format modern
 
+# One specific event, straight from its mtgdecks.net page
+python scripts/ingest_tournaments.py --url "https://mtgdecks.net/Premodern/agroliga-live-in-valdepenas-asociacion-conclave-manzanares-tournament-265368"
+
 # Preview the generated SQL without touching the DB
 python scripts/ingest_tournaments.py --dry-run
 
@@ -83,6 +87,7 @@ Supabase database; override it with `--db-url` or the `DATABASE_URL` env var.
 | Option | Description |
 | --- | --- |
 | `--source NAME` | Source(s) to ingest; repeatable. Default: all (`mtgo`, `melee`, `mtgdecks`, `topdeck`, `spellbinder`). |
+| `--url URL` | Ingest one `mtgdecks` event page by URL; repeatable. Skips the crawl, so `--source` / `--since` don't apply. |
 | `--format CODE` | Only events matching this `formats.code` (e.g. `modern`); repeatable. Default: all. Events with no format are excluded when set. |
 | `--since YYYY-MM-DD` | Only events held on or after this date. |
 | `--db-url URL` | Target database. Default: `$DATABASE_URL` or the local Supabase DB. |
@@ -130,6 +135,76 @@ In short: the **cache** (`_tournament_cache/`, gitignored) stores the raw fetche
 source data so you can re-run ingestion offline, while the **snapshot**
 (`supabase/seeds/tournaments.sql`, committed) is the SQL that `supabase db reset`
 reloads automatically.
+
+### Ingesting one event by URL
+
+Crawling a source's listing pages is date-windowed and slow. To pull in a single
+known event — one the window missed, or one whose decklists were posted after it
+was first ingested — pass its mtgdecks.net URL:
+
+```bash
+# Fetch that event and upsert it into the local DB
+python scripts/ingest_tournaments.py --url "https://mtgdecks.net/Premodern/agroliga-live-in-valdepenas-asociacion-conclave-manzanares-tournament-265368"
+
+# Several at once, and into production
+python scripts/ingest_tournaments.py --url "<url1>" --url "<url2>"
+DATABASE_URL="$SUPABASE_DB_URL" python scripts/ingest_tournaments.py --url "<url>"
+
+# Preview the SQL first
+python scripts/ingest_tournaments.py --url "<url>" --dry-run
+```
+
+`--url` replaces the crawl, so `--source` and `--since` have no effect on it; the
+event's format comes from the URL's path segment. Everything else is unchanged:
+the same idempotent `(source, external_id)` upsert, the same card-name
+resolution, and the event is merged into the disk cache (`--no-cache` to skip)
+and into `supabase/seeds/tournaments.sql` with `--snapshot`. Because ingestion
+is idempotent, re-running it on an event already in the database just refreshes
+it. It can't be combined with `--from-cache`, which reads from disk rather than
+the network. Only `mtgdecks` supports it today: it's the one source exposing a
+single-event fetcher (`fetch_url`).
+
+### Fetching one event by URL without ingesting
+
+`scripts/fetch_tournament.py` grabs a single mtgdecks.net event — every
+decklist plus each deck's record — straight from its URL, without crawling a
+format's listing pages or touching the database. Useful for checking how an
+event parses — or reading its standings — before ingesting it:
+
+```bash
+# Print the event as JSON on stdout
+python scripts/fetch_tournament.py "https://mtgdecks.net/Premodern/agroliga-live-in-valdepenas-asociacion-conclave-manzanares-tournament-265368"
+
+# Standings table instead: placement, player, record, archetype, card count
+python scripts/fetch_tournament.py "<url>" --summary
+
+# Save the JSON
+python scripts/fetch_tournament.py "<url>" -o event.json
+```
+
+```
+Agroliga Live In Valdepeñas @ Asociación Cónclave Manzanares — premodern — 2026-08-15 — 39 players
+   1  Navas                    6-0-2     Landstill                     60 cards
+   2  Smolero                  6-2       Oath Ponza                    75 cards
+   3  Tojo                     5-1-1     Burn                         100 cards
+```
+
+The JSON is the same shape the ingest cache stores (`source`, `external_id`,
+`name`, `format`, `held_on`, `player_count`, `decks[]` with `wins`/`losses`/
+`draws` and `cards[]`), so it pipes or saves as-is. The format is read from the
+URL's path segment; an unrecognized one comes back as `null`.
+
+| Option | Description |
+| --- | --- |
+| `--summary` | Print the standings table instead of JSON. |
+| `-o`, `--output PATH` | Write to this file instead of stdout. |
+
+Parsing is shared with the `mtgdecks` ingest source
+(`scripts/tournament_sources/mtgdecks.py`). Each deck is a separate page fetch
+and mtgdecks meters them per IP, so a large event takes a few minutes — 429s are
+logged and backed off rather than failing the run. This script only reads — it
+never touches the database, the cache, or the seed; to store an event, use
+`ingest_tournaments.py --url` above.
 
 ### Deleting a tournament
 
