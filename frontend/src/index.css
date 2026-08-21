@@ -915,7 +915,7 @@ main {
   @apply text-[0.65em] text-garnet;
 }
 .standings-rank {
-  @apply w-12 text-text-dim tabular-nums;
+  @apply w-12 tabular-nums;
 }
 .standings-record {
   @apply text-right tabular-nums whitespace-nowrap;
