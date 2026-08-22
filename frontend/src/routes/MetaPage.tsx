@@ -255,13 +255,14 @@ export default function MetaPage() {
         <h1>{formatName}</h1>
       </header>
 
-      <div className="mb-4 flex flex-wrap gap-x-5 gap-y-2">
+      <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2">
         {KINDS.map(k => (
           <label key={k.id} className="toggle text-sm">
             <input type="checkbox" checked={activeKinds.has(k.id)} onChange={() => toggleKind(k.id)} />
             {k.label}
           </label>
         ))}
+        <span className="text-sm text-dim">{decks.length} decks</span>
       </div>
 
       <div className="tabs" role="tablist">
@@ -275,11 +276,7 @@ export default function MetaPage() {
           >
             {t.label}
             <span className="tab-count">
-              {t.id === "meta"
-                ? archetypes.length
-                : t.id === "tournaments"
-                  ? tournaments.length
-                  : decks.length}
+              {t.id === "meta" ? archetypes.length : t.id === "tournaments" ? tournaments.length : matches.length}
             </span>
           </Link>
         ))}
