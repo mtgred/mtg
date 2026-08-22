@@ -57,10 +57,6 @@
 
   body {
     @apply min-h-screen bg-paper bg-fixed;
-    background-image:
-      radial-gradient(120% 90% at 8% -8%, rgba(176, 138, 46, 0.1), transparent 55%),
-      radial-gradient(120% 90% at 100% 0%, color-mix(in oklab, var(--color-blue-600) 8%, transparent), transparent 50%),
-      radial-gradient(100% 80% at 50% 120%, rgba(94, 117, 133, 0.07), transparent 60%);
   }
 
   /* fine paper grain laid over everything */
@@ -251,7 +247,7 @@ main {
   @apply min-h-[calc(100vh-60px)];
 }
 .page {
-  @apply max-w-320 mx-auto p-[clamp(0.85rem,4vw,1rem)] animate-rise;
+  @apply max-w-360 mx-auto p-[clamp(0.85rem,4vw,1rem)] animate-rise;
 }
 
 .not-found {
