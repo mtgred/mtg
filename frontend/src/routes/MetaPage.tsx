@@ -142,7 +142,8 @@ export default function MetaPage() {
   // don't touch (e.g. the kind filter); empty/null values drop their key.
   const setFilters = (next: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams)
-    for (const [k, v] of Object.entries(next)) if (v) params.set(k, v)
+    for (const [k, v] of Object.entries(next))
+      if (v) params.set(k, v)
       else params.delete(k)
     setSearchParams(params, { replace: true })
   }
@@ -157,7 +158,10 @@ export default function MetaPage() {
   // Suffix for deep-links into the search tab so they carry the current filter.
   const kindsQuery = kindsParam ? `&kinds=${kindsParam}` : ""
   const activeKinds = useMemo(
-    () => (kindsParam == null ? new Set(ALL_KINDS) : new Set(kindsParam.split(",").filter(k => ALL_KINDS.includes(k as Kind)))),
+    () =>
+      kindsParam == null
+        ? new Set(ALL_KINDS)
+        : new Set(kindsParam.split(",").filter(k => ALL_KINDS.includes(k as Kind))),
     [kindsParam]
   )
   const toggleKind = (id: Kind) => {
@@ -224,8 +228,11 @@ export default function MetaPage() {
     return m
   }, [decks])
 
+  // Blank until something is filtered on — rendering every finish in the format is
+  // thousands of rows and janks the tab.
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase()
+    if (!q && !archetype && !player) return NO_DECKS
     let list = decks
     if (archetype) list = list.filter(d => (d.archetype ?? "Other") === archetype)
     if (player) list = list.filter(d => d.player === player)
@@ -266,20 +273,22 @@ export default function MetaPage() {
       </div>
 
       <div className="tabs" role="tablist">
-        {TABS.map(t => (
-          <Link
-            key={t.id}
-            to={{ pathname: tabPath(format, t.id), search: kindsParam ? `?kinds=${kindsParam}` : "" }}
-            role="tab"
-            aria-selected={tab === t.id}
-            className={`tab${tab === t.id ? " is-active" : ""}`}
-          >
-            {t.label}
-            <span className="tab-count">
-              {t.id === "meta" ? archetypes.length : t.id === "tournaments" ? tournaments.length : matches.length}
-            </span>
-          </Link>
-        ))}
+        {TABS.map(t => {
+          const count =
+            t.id === "meta" ? archetypes.length : t.id === "tournaments" ? tournaments.length : matches.length
+          return (
+            <Link
+              key={t.id}
+              to={{ pathname: tabPath(format, t.id), search: kindsParam ? `?kinds=${kindsParam}` : "" }}
+              role="tab"
+              aria-selected={tab === t.id}
+              className={`tab${tab === t.id ? " is-active" : ""}`}
+            >
+              {t.label}
+              {count > 0 && <span className="tab-count">{count}</span>}
+            </Link>
+          )
+        })}
       </div>
 
       {loading && <p className="muted">Loading…</p>}
@@ -408,9 +417,7 @@ function MetaList({
               <td className="standings-record">{a.count}</td>
               <td className="standings-record">{(share * 100).toFixed(1)}%</td>
               <td className="standings-record">{topShare == null ? "—" : `${(topShare * 100).toFixed(1)}%`}</td>
-              <td className="standings-record">
-                {relative == null ? "—" : `${(relative * 100).toFixed(1)}%`}
-              </td>
+              <td className="standings-record">{relative == null ? "—" : `${(relative * 100).toFixed(1)}%`}</td>
               <td className="standings-record">{a.games > 0 ? `${((a.wins / a.games) * 100).toFixed(1)}%` : "—"}</td>
             </tr>
           )
@@ -463,29 +470,29 @@ function TournamentsTab({
         <table className="standings">
           <thead>
             <tr>
-              <SortTh col="name" sort={sort} toggle={toggle}>
-                Tournament
-              </SortTh>
               <SortTh col="held_on" sort={sort} toggle={toggle}>
                 Date
               </SortTh>
-              <SortTh col="location" sort={sort} toggle={toggle}>
-                Location
-              </SortTh>
               <SortTh col="size" sort={sort} toggle={toggle} className="standings-record">
                 Players
+              </SortTh>
+              <SortTh col="name" sort={sort} toggle={toggle}>
+                Tournament
+              </SortTh>
+              <SortTh col="location" sort={sort} toggle={toggle}>
+                Location
               </SortTh>
             </tr>
           </thead>
           <tbody>
             {sorted.map(t => (
               <tr key={t.id}>
+                <td>{t.held_on ? formatDate(t.held_on) : "—"}</td>
+                <td className="standings-record">{t.size || "—"}</td>
                 <td>
                   <Link to={`/${format}/tournaments/${t.id}`}>{t.name}</Link>
                 </td>
-                <td>{t.held_on ? formatDate(t.held_on) : "—"}</td>
                 <td>{t.location ?? "—"}</td>
-                <td className="standings-record">{t.size || "—"}</td>
               </tr>
             ))}
           </tbody>
@@ -542,15 +549,35 @@ function SearchTab({
   kindsQuery: string
 }) {
   const { sorted, sort, toggle } = useSort(decks, searchSort, { key: "date", dir: "desc" })
+  // The box holds a draft that only becomes the live `query` on Enter — filtering
+  // every finish in the format on each keystroke janks the tab. Clearing the box
+  // commits immediately so the native ✕ still works, and an outside change to the
+  // query (a deck link dropping ?q=) resets the draft.
+  const [draft, setDraft] = useState(query)
+  const [lastQuery, setLastQuery] = useState(query)
+  if (query !== lastQuery) {
+    setLastQuery(query)
+    setDraft(query)
+  }
   return (
     <>
       <div className="mb-5 flex flex-wrap items-center gap-3 [&_.search-field]:ml-0 [&_.search-field]:w-96">
-        <FilterInput placeholder="Search by archetype or player…" value={query} onChange={onQuery} />
+        <FilterInput
+          placeholder="Search by archetype or player…"
+          value={draft}
+          onChange={v => {
+            setDraft(v)
+            if (!v.trim()) onQuery("")
+          }}
+          onEnter={onQuery}
+        />
         {archetype && <FilterPill label="Archetype" value={archetype} onClear={onClearArchetype} />}
         {player && <FilterPill label="Player" value={player} onClear={onClearPlayer} />}
       </div>
       {total === 0 ? (
         <p className="muted">No decks recorded yet.</p>
+      ) : !query.trim() && !archetype && !player ? (
+        <p className="muted">Search by archetype or player to list decks.</p>
       ) : decks.length === 0 ? (
         <p className="muted">No decks match{query && ` “${query}”`}.</p>
       ) : (
