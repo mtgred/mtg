@@ -14,15 +14,8 @@
   --color-text-dim: #6b6253;
   --color-text-faint: #968b76;
 
-  --color-garnet: #8a2f2f;
-  --color-garnet-bright: #a8413f;
   --color-gold: #9a7826;
   --color-gold-bright: #b08a2e;
-  --color-danger: #a8302a;
-
-  --color-legal-bg: rgba(70, 130, 80, 0.16);
-  --color-legal-ink: #3f7a4c;
-  --color-legal-edge: rgba(70, 130, 80, 0.28);
 
   --color-rarity-common: #353318;
   --color-rarity-uncommon: #93acb9;
@@ -66,7 +59,7 @@
     @apply min-h-screen bg-paper bg-fixed;
     background-image:
       radial-gradient(120% 90% at 8% -8%, rgba(176, 138, 46, 0.1), transparent 55%),
-      radial-gradient(120% 90% at 100% 0%, rgba(138, 47, 47, 0.07), transparent 50%),
+      radial-gradient(120% 90% at 100% 0%, color-mix(in oklab, var(--color-blue-600) 8%, transparent), transparent 50%),
       radial-gradient(100% 80% at 50% 120%, rgba(94, 117, 133, 0.07), transparent 60%);
   }
 
@@ -83,7 +76,7 @@
   }
 
   a {
-    @apply text-garnet no-underline;
+    @apply text-blue-600 no-underline;
     &:hover {
       @apply underline underline-offset-2 decoration-1;
     }
@@ -106,7 +99,7 @@
   @apply text-text-dim;
 }
 .error {
-  @apply text-danger font-medium;
+  @apply text-red-700 font-medium;
 }
 
 /* ---- chrome ---- */
@@ -117,16 +110,16 @@
 .brand {
   @apply flex items-center gap-2 mr-4 font-semibold text-base text-ink;
   &:hover {
-    @apply no-underline text-garnet;
+    @apply no-underline text-blue-600;
   }
 }
 .navlink {
-  @apply inline-flex items-center gap-1 appearance-none bg-none border-none cursor-pointer py-1 px-2.5 rounded-lg font-semibold text-text-dim transition-colors duration-150;
+  @apply inline-flex items-center gap-1 appearance-none bg-none border-none cursor-pointer py-1 px-2.5 rounded-lg text-text-dim transition-colors duration-150;
   &:hover {
     @apply no-underline text-ink bg-paper-sunken;
   }
   &.is-active {
-    @apply text-garnet;
+    @apply text-blue-600;
   }
 }
 
@@ -142,12 +135,12 @@
   animation: var(--animate-rise-fast);
 }
 .cardsmenu-item {
-  @apply py-1 px-2 rounded-lg font-semibold text-text-dim transition-colors duration-150;
+  @apply py-1 px-2 rounded-lg text-text-dim transition-colors duration-150;
   &:hover {
     @apply no-underline text-ink bg-paper-sunken;
   }
   &.is-active {
-    @apply text-garnet;
+    @apply text-blue-600;
   }
 }
 
@@ -156,13 +149,13 @@
   @apply flex items-center gap-1 ml-auto;
 }
 .account-cta {
-  @apply text-garnet;
+  @apply text-blue-600;
   &:hover {
-    @apply text-garnet-bright bg-paper-sunken;
+    @apply text-blue-600 bg-paper-sunken;
   }
 }
 .account-avatar {
-  @apply inline-flex items-center justify-center w-6 h-6 rounded-full bg-garnet text-paper-raised text-xs font-bold;
+  @apply inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-paper-raised text-xs font-bold;
 }
 .account-menu {
   @apply min-w-52 right-0 left-auto;
@@ -191,9 +184,9 @@
   @apply m-0 text-gold;
 }
 .auth-submit {
-  @apply py-2 px-3 rounded-lg bg-garnet text-paper-raised font-semibold cursor-pointer border-none transition-colors duration-150;
+  @apply py-2 px-3 rounded-lg bg-blue-600 text-paper-raised font-semibold cursor-pointer border-none transition-colors duration-150;
   &:hover {
-    @apply bg-garnet-bright;
+    @apply bg-blue-600;
   }
   &:disabled {
     @apply opacity-60 cursor-not-allowed;
@@ -258,7 +251,7 @@ main {
   @apply min-h-[calc(100vh-60px)];
 }
 .page {
-  @apply max-w-300 mx-auto p-[clamp(0.85rem,4vw,1rem)] animate-rise;
+  @apply max-w-320 mx-auto p-[clamp(0.85rem,4vw,1rem)] animate-rise;
 }
 
 .not-found {
@@ -304,12 +297,12 @@ main {
 .tabs {
   @apply flex gap-1.5 mb-4 border-b border-border-soft;
   .tab {
-    @apply appearance-none bg-none border-b-2 border-b-transparent -mb-px py-2 px-3.5 text-base font-semibold text-text-dim cursor-pointer transition-[color,border-color] duration-150;
+    @apply appearance-none bg-none border-b-2 border-b-transparent -mb-px py-2 px-3.5 text-base text-text-dim cursor-pointer transition-[color,border-color] duration-150;
     &:hover {
       @apply text-ink;
     }
     &.is-active {
-      @apply text-ink border-b-gold;
+      @apply text-ink border-b-blue-600;
     }
   }
   .tab-count {
@@ -513,7 +506,7 @@ main {
 .inline-set {
   @apply inline-flex items-center gap-1;
   &:hover {
-    @apply text-garnet;
+    @apply text-blue-600;
   }
   img {
     @apply w-4.5 h-4.5 opacity-80;
@@ -527,7 +520,7 @@ main {
   @apply text-xs py-1 px-2.5 rounded-md font-semibold;
 }
 .legality-legal {
-  @apply bg-legal-bg text-legal-ink border border-legal-edge;
+  @apply bg-emerald-600/15 text-emerald-700 border border-emerald-600/30;
 }
 .legality-not_legal, .legality-banned {
   @apply bg-paper-sunken text-text-faint border border-border;
@@ -549,7 +542,7 @@ main {
     }
   }
   li.current a {
-    @apply border-garnet bg-[rgba(138,47,47,0.05)];
+    @apply border-blue-600 bg-blue-600/5;
   }
 }
 .v-thumb {
@@ -592,18 +585,18 @@ main {
   }
 }
 .btn {
-  @apply inline-flex items-center gap-1.5 py-2 px-3.5 rounded-lg bg-garnet text-paper-raised font-semibold cursor-pointer border-none transition-colors duration-150;
+  @apply inline-flex items-center gap-1.5 py-2 px-3.5 rounded-lg bg-blue-600 text-paper-raised font-semibold cursor-pointer border-none transition-colors duration-150;
   &:hover {
-    @apply no-underline text-paper-raised bg-garnet-bright;
+    @apply no-underline text-paper-raised bg-blue-600;
   }
   &:disabled {
     @apply opacity-60 cursor-not-allowed;
   }
 }
 .btn-danger {
-  @apply bg-paper-raised text-danger border border-[rgba(168,48,42,0.3)];
+  @apply bg-paper-raised text-red-700 border border-red-700/30;
   &:hover {
-    @apply text-danger bg-[rgba(168,48,42,0.08)] border-[rgba(168,48,42,0.45)];
+    @apply text-red-700 bg-red-700/10 border-red-700/45;
   }
 }
 .btn-soft {
@@ -640,7 +633,7 @@ main {
   @apply min-w-52;
 }
 .deck-public-tag {
-  @apply text-xs font-semibold uppercase tracking-wider py-0.5 px-1.5 rounded-md bg-legal-bg text-legal-ink border border-legal-edge;
+  @apply text-xs font-semibold uppercase tracking-wider py-0.5 px-1.5 rounded-md bg-emerald-600/15 text-emerald-700 border border-emerald-600/30;
 }
 
 /* ---- deck builder ---- */
@@ -674,7 +667,7 @@ main {
 .toggle {
   @apply inline-flex items-center gap-2 cursor-pointer select-none font-semibold text-text-dim;
   input {
-    @apply accent-garnet w-4 h-4;
+    @apply accent-blue-600 w-4 h-4;
   }
 }
 .deck-description {
@@ -745,16 +738,16 @@ main {
   @apply w-full rounded-cardface shadow-2xl;
 }
 .deck-board {
-  @apply flex flex-col gap-2;
+  @apply flex flex-col;
 }
 .deck-board-head {
-  @apply flex items-baseline gap-2 m-0 text-base font-semibold uppercase tracking-wide text-text-dim;
+  @apply flex items-baseline gap-2 mb-3 text-base font-semibold uppercase tracking-wide text-text-dim;
 }
 .deck-board-count {
   @apply text-text-faint font-medium tabular-nums;
 }
 .deck-cat {
-  @apply mt-1;
+  @apply mb-3;
 }
 .deck-cat-head {
   @apply m-0 mb-1 text-xs uppercase tracking-wider font-semibold text-text-faint;
@@ -769,7 +762,7 @@ main {
   @apply inline-flex items-center gap-1 flex-none;
 }
 .deck-row-name {
-  @apply inline-flex min-w-0 gap-1 truncate text-ink font-medium;
+  @apply inline-flex min-w-0 gap-1.5 truncate text-ink font-medium;
 }
 .deck-row-cost {
   @apply inline-flex gap-px flex-none;
@@ -912,7 +905,7 @@ main {
   @apply justify-end;
 }
 .sort-arrow {
-  @apply text-[0.65em] text-garnet;
+  @apply text-[0.65em] text-blue-600;
 }
 .standings-rank {
   @apply w-12 tabular-nums;
@@ -941,7 +934,7 @@ main {
   @apply h-1.5 my-2 rounded-full bg-paper-sunken overflow-hidden;
   span {
     @apply block h-full rounded-full;
-    background: linear-gradient(90deg, var(--color-gold-bright), var(--color-garnet));
+    background: linear-gradient(90deg, var(--color-blue-400), var(--color-blue-600));
   }
 }
 .meta-arch-meta {
