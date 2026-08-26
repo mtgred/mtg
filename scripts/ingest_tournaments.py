@@ -313,6 +313,15 @@ def apply_sql(sql: str, db_url: str) -> None:
     )
 
 
+# The archetype classifier is a materialized view, so newly ingested decks stay
+# unclassified until it is rebuilt (supabase/schemas/archetypes.sql). CONCURRENTLY
+# keeps the metagame pages readable while it runs, which needs its own transaction —
+# psql runs this statement in autocommit.
+def refresh_archetypes(db_url: str) -> None:
+    print("Refreshing archetype classification...", file=sys.stderr)
+    apply_sql("refresh materialized view concurrently tournament_deck_archetypes;\n", db_url)
+
+
 def snapshot_sql(parts: list[str]) -> str:
     return "begin;\n\n" + "\n\n".join(parts) + "\n\ncommit;\n"
 
@@ -426,6 +435,8 @@ def main(argv=None):
     if not parts:
         print("No tournaments fetched; nothing to do.", file=sys.stderr)
         return
+    if not args.dry_run and applied:
+        refresh_archetypes(args.db_url)
     if not args.dry_run:
         print(
             f"Applied {applied} events to {args.db_url.split('@')[-1]}"

@@ -55,3 +55,8 @@ CREATE TABLE tournament_deck_cards (
 );
 
 CREATE INDEX tournament_deck_cards_deck_id_idx ON tournament_deck_cards (tournament_deck_id);
+-- The archetype classifier looks up decks by the handful of card ids its rules
+-- name, over main/commander only (see tournament_deck_archetypes).
+CREATE INDEX tournament_deck_cards_card_id_idx
+  ON tournament_deck_cards (card_id, tournament_deck_id)
+  WHERE board IN ('main', 'commander');
