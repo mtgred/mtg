@@ -89,6 +89,9 @@ def purge_db(rows: list[dict], db_url: str) -> None:
         for r in rows
     ]
     apply_sql(f"delete from tournaments where {' or '.join(preds)};", db_url)
+    # Drop the deleted decks from the materialized classifier too, or the meta
+    # pages keep counting them (supabase/schemas/archetypes.sql).
+    apply_sql("refresh materialized view concurrently tournament_deck_archetypes;", db_url)
     print(f"  database: {len(rows)} event(s) deleted", file=sys.stderr)
 
 
