@@ -15,6 +15,7 @@ committed seed.
   - `delete_tournament.py` — removes a tournament everywhere it's stored (see below).
   - `fetch_tournament.py` — dumps one mtgdecks.net event by URL (see below).
   - `ingest_goatbots_prices.py` — refreshes MTGO prices from Goatbots (see below).
+  - `dump_archetypes.py` — writes the archetype rules back out as a seed (see below).
 
 ## Getting started
 
@@ -297,3 +298,10 @@ script rather than curl.
 `python scripts/generate_seed.py` rewrites `supabase/seed.sql` from Scryfall (a
 large, gitignored file). Flags: `--limit`, `--include-digital`,
 `--exclude-tokens`, `--output`.
+
+The archetype classifier rules are curated in the app (`/:format/archetypes`),
+so the database is their source of truth. `python scripts/dump_archetypes.py`
+dumps the `archetypes` table back into `supabase/seeds/archetypes.sql` — run it
+after editing rules so the committed fixture `supabase db reset` reloads stays
+in sync, rather than hand-patching the seed. Same `--db-url`/`DATABASE_URL`
+convention as the ingest scripts, plus `--output`.
