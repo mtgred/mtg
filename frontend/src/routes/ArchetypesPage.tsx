@@ -15,6 +15,8 @@ type Rule = {
   sortOrder: string
   minSignatures: string
   signatures: string
+  required: string
+  exclusions: string
   dirty: boolean
   saving: boolean
   error: string | null
@@ -34,6 +36,8 @@ function toRule(a: Archetype): Rule {
     sortOrder: a.sort_order?.toString() ?? "",
     minSignatures: a.min_signatures?.toString() ?? "",
     signatures: a.signature_cards.join("\n"),
+    required: (a.required_cards ?? []).join("\n"),
+    exclusions: (a.excluded_cards ?? []).join("\n"),
     dirty: false,
     saving: false,
     error: null,
@@ -57,7 +61,7 @@ async function loadPage(format: string): Promise<PageData> {
   const { data: fmt } = await supabase.from("formats").select("code,name").eq("code", format).maybeSingle()
   const { data: archetypes, error } = await supabase
     .from("archetypes")
-    .select("id,format,name,sort_order,signature_cards,min_signatures")
+    .select("id,format,name,sort_order,signature_cards,min_signatures,required_cards,excluded_cards")
     .eq("format", format)
     .order("sort_order", { ascending: true, nullsFirst: false })
     .order("name")
@@ -68,6 +72,12 @@ async function loadPage(format: string): Promise<PageData> {
     stats: await loadStats(format),
   }
 }
+
+const lines = (text: string) =>
+  text
+    .split("\n")
+    .map(s => s.trim())
+    .filter(Boolean)
 
 let newRuleKey = 0
 
@@ -109,12 +119,11 @@ function RulesEditor({ format, formatName, data }: { format: string; formatName:
 
   async function saveRule(rule: Rule) {
     const name = rule.name.trim()
-    const signature_cards = rule.signatures
-      .split("\n")
-      .map(s => s.trim())
-      .filter(Boolean)
-    if (!name || signature_cards.length === 0) {
-      return patch(rule.key, { error: "A name and at least one signature card are required." })
+    const signature_cards = lines(rule.signatures)
+    const required_cards = lines(rule.required)
+    const excluded_cards = lines(rule.exclusions)
+    if (!name || signature_cards.length + required_cards.length === 0) {
+      return patch(rule.key, { error: "A name and at least one signature or must-include card are required." })
     }
     patch(rule.key, { saving: true, error: null, warning: null })
     const row = {
@@ -123,6 +132,8 @@ function RulesEditor({ format, formatName, data }: { format: string; formatName:
       sort_order: rule.sortOrder.trim() ? Number(rule.sortOrder) : null,
       min_signatures: rule.minSignatures.trim() ? Number(rule.minSignatures) : null,
       signature_cards,
+      required_cards,
+      excluded_cards,
     }
     const query =
       rule.id == null
@@ -131,11 +142,12 @@ function RulesEditor({ format, formatName, data }: { format: string; formatName:
     const { data: saved, error } = await query
     if (error || !saved) return patch(rule.key, { saving: false, error: error?.message ?? "Could not save." })
 
-    // Signatures match cards.name exactly, so a typo silently never matches —
+    // Card names match cards.name exactly, so a typo silently never matches —
     // surface names the card database doesn't know.
-    const { data: known } = await supabase.from("cards").select("name").in("name", signature_cards)
+    const listed = [...signature_cards, ...required_cards, ...excluded_cards]
+    const { data: known } = await supabase.from("cards").select("name").in("name", listed)
     const knownNames = new Set((known ?? []).map(c => c.name))
-    const missing = signature_cards.filter(n => !knownNames.has(n))
+    const missing = listed.filter(n => !knownNames.has(n))
     patch(rule.key, {
       id: saved.id,
       saving: false,
@@ -165,6 +177,8 @@ function RulesEditor({ format, formatName, data }: { format: string; formatName:
         sortOrder: "",
         minSignatures: "",
         signatures: "",
+        required: "",
+        exclusions: "",
         dirty: true,
         saving: false,
         error: null,
@@ -186,9 +200,10 @@ function RulesEditor({ format, formatName, data }: { format: string; formatName:
       </header>
 
       <p className="muted max-w-180 mb-2">
-        A finishing deck is labeled with an archetype when its mainboard and commander contain at least “min matches”
-        of the rule’s signature cards (blank = all of them). When several rules match, the one matching the most cards
-        wins, then the one with the fewest signature cards, then sort order.
+        A finishing deck is labeled with an archetype when its mainboard and commander contain at least “min matches” of
+        the rule’s “must include” and signature cards combined (blank = all of them), play every “must include” card,
+        and none of the excluded ones. When several rules match, the one matching the most cards wins, then the one
+        naming the most cards, then sort order.
       </p>
       <p className="muted mb-6">
         {stats.matched.toLocaleString()} of {stats.total.toLocaleString()} recorded decks currently match a rule.
@@ -204,7 +219,10 @@ function RulesEditor({ format, formatName, data }: { format: string; formatName:
 
       <ul className="list-none m-0 p-0 flex flex-col gap-4 max-w-180">
         {rules.map(rule => (
-          <li key={rule.key} className="flex flex-col gap-3 p-4 bg-paper-raised border border-border rounded-card shadow-sm">
+          <li
+            key={rule.key}
+            className="flex flex-col gap-3 p-4 bg-paper-raised border border-border rounded-card shadow-sm"
+          >
             <div className="flex flex-wrap items-end gap-3">
               <label className="flex flex-col gap-1.5 flex-1 min-w-40">
                 <span className="field-label">Name</span>
@@ -241,6 +259,17 @@ function RulesEditor({ format, formatName, data }: { format: string; formatName:
             </div>
 
             <label className="flex flex-col gap-1.5">
+              <span className="field-label">Must include — a deck missing any of these never matches</span>
+              <textarea
+                className="input cursor-text resize-y font-mono text-sm"
+                rows={Math.max(2, rule.required.split("\n").length)}
+                value={rule.required}
+                disabled={!canEdit}
+                onChange={e => edit(rule.key, { required: e.target.value })}
+              />
+            </label>
+
+            <label className="flex flex-col gap-1.5">
               <span className="field-label">Signature cards — exact names, one per line</span>
               <textarea
                 className="input cursor-text resize-y font-mono text-sm"
@@ -248,6 +277,17 @@ function RulesEditor({ format, formatName, data }: { format: string; formatName:
                 value={rule.signatures}
                 disabled={!canEdit}
                 onChange={e => edit(rule.key, { signatures: e.target.value })}
+              />
+            </label>
+
+            <label className="flex flex-col gap-1.5">
+              <span className="field-label">Excluded cards — a deck playing any of these never matches</span>
+              <textarea
+                className="input cursor-text resize-y font-mono text-sm"
+                rows={Math.max(2, rule.exclusions.split("\n").length)}
+                value={rule.exclusions}
+                disabled={!canEdit}
+                onChange={e => edit(rule.key, { exclusions: e.target.value })}
               />
             </label>
 
@@ -265,7 +305,12 @@ function RulesEditor({ format, formatName, data }: { format: string; formatName:
                   <button type="button" className="btn btn-danger" onClick={() => deleteRule(rule)}>
                     Delete
                   </button>
-                  <button type="button" className="btn" disabled={!rule.dirty || rule.saving} onClick={() => saveRule(rule)}>
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={!rule.dirty || rule.saving}
+                    onClick={() => saveRule(rule)}
+                  >
                     {rule.saving ? "Saving…" : rule.dirty ? "Save" : "Saved"}
                   </button>
                 </>

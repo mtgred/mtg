@@ -113,6 +113,8 @@ export type Archetype = {
   sort_order: number | null
   signature_cards: string[]
   min_signatures: number | null
+  required_cards: string[]
+  excluded_cards: string[]
 }
 
 // One player's finish at a tournament, plus the deck they played.

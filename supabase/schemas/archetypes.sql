@@ -3,7 +3,9 @@
 -- /:format/archetypes (RLS below: world-readable, signed-in users curate).
 --
 -- A finishing deck is labeled by matching its main/commander card list against
--- each archetype's `signature_cards`; the best match wins (tournament_deck_archetypes).
+-- each archetype's `signature_cards` (requiring every `required_cards` and
+-- rejecting it on any `excluded_cards`); the best match wins
+-- (tournament_deck_archetypes).
 -- This normalizes the inconsistent free-text `tournament_decks.archetype` labels
 -- that ingest sources report (tcdecks-style classification).
 CREATE TABLE archetypes (
@@ -11,12 +13,22 @@ CREATE TABLE archetypes (
   format VARCHAR(31) NOT NULL REFERENCES formats(code),  -- formats.code
   name VARCHAR(255) NOT NULL,                             -- display label, e.g. "Izzet Murktide"
   sort_order INT,
-  -- Defining cards by exact cards.name. A deck qualifies when it contains at
-  -- least `min_signatures` of these in its main/commander boards.
+  -- Defining cards by exact cards.name. A deck qualifies when its
+  -- main/commander boards hold at least `min_signatures` of these plus
+  -- `required_cards`.
   signature_cards TEXT[] NOT NULL,
-  -- Null means "require all signature_cards". Set to 1 when a single card is
-  -- decisive (e.g. Living End), or a lower count for partial-match shells.
+  -- Threshold over signature_cards *and* required_cards together. Null means
+  -- "require all of them". Set to 1 when a single card is decisive (e.g. Living
+  -- End), or a lower count for partial-match shells.
   min_signatures INT,
+  -- Prerequisites by exact cards.name: a deck must play *every* one of these to
+  -- get this archetype, on top of clearing the threshold (which they count
+  -- towards).
+  required_cards TEXT[] NOT NULL DEFAULT '{}',
+  -- Disqualifiers by exact cards.name: a deck playing any of these never gets
+  -- this archetype, however many signatures it matched. Use to split shells that
+  -- share a core (e.g. plain Tron excluding the Eldrazi payoffs).
+  excluded_cards TEXT[] NOT NULL DEFAULT '{}',
   UNIQUE (format, name)
 );
 
@@ -35,33 +47,96 @@ CREATE POLICY "Signed-in users manage archetypes"
   USING ((SELECT auth.uid()) IS NOT NULL)
   WITH CHECK ((SELECT auth.uid()) IS NOT NULL);
 
--- Best-matching archetype per finishing deck. For every (deck, archetype) of the
--- deck's format, count how many of the archetype's signature cards appear in the
--- deck's main/commander boards; keep matches meeting the threshold, then pick the
--- strongest per deck (most signatures matched, then the most specific definition).
-CREATE VIEW tournament_deck_archetypes AS
-WITH matches AS (
+-- Best-matching archetype per finishing deck. Every card any rule names is
+-- resolved to a cards.id once (`rule_cards`, tagged with the role it plays), so
+-- a single grouped pass over each deck's main/commander cards answers all three
+-- tests at once: enough signature/required cards matched, every required card
+-- present, no excluded card present. Ties are broken per deck by most cards
+-- matched, then the most specific definition.
+-- Materialized: classifying every deck costs a pass over the rule cards of all
+-- 2.6M deck-card rows (~0.7s), and the metagame pages read this on every request.
+-- It is refreshed whenever the rules change (trigger below) and at the end of a
+-- tournament ingest (scripts/ingest_tournaments.py) — nothing else changes the
+-- outcome, so the snapshot is only ever as stale as the last write to either.
+CREATE MATERIALIZED VIEW tournament_deck_archetypes AS
+WITH rules AS MATERIALIZED (
+  -- Sizes count distinct names, so a name repeated in a list can't make a rule
+  -- unsatisfiable. A name absent from `cards` resolves to no card_id and so
+  -- never matches — for a required card that disables the rule entirely.
   SELECT
-    td.id AS tournament_deck_id,
-    a.id AS archetype_id,
-    a.name AS archetype,
-    a.sort_order,
-    array_length(a.signature_cards, 1) AS sig_count,
-    count(DISTINCT sig.card) AS matched
+    a.id, a.name, a.sort_order, a.min_signatures,
+    -- `card_count` is what a blank min_signatures means: every named card. A name
+    -- in both lists is counted once per role here and matches once per role
+    -- below, so the two stay consistent.
+    (SELECT count(DISTINCT s) FROM unnest(a.signature_cards) s)
+      + (SELECT count(DISTINCT r) FROM unnest(a.required_cards) r) AS card_count,
+    (SELECT count(DISTINCT r) FROM unnest(a.required_cards) r) AS req_count
+  FROM archetypes a
+),
+rule_cards AS MATERIALIZED (
+  SELECT DISTINCT a.id AS archetype_id, a.format, c.id AS card_id, r.role
+  FROM archetypes a
+  CROSS JOIN LATERAL (
+    SELECT unnest(a.signature_cards) AS card, 'sig' AS role
+    UNION ALL SELECT unnest(a.required_cards), 'req'
+    UNION ALL SELECT unnest(a.excluded_cards), 'exc'
+  ) r
+  JOIN cards c ON c.name = r.card
+),
+-- Only the cards some rule cares about, one row per (deck, card) so the counts
+-- below need no DISTINCT — a card listed on both main and commander counts once.
+deck_cards AS MATERIALIZED (
+  SELECT DISTINCT td.id AS tournament_deck_id, t.format, tdc.card_id
   FROM tournament_decks td
   JOIN tournaments t ON t.id = td.tournament_id
-  JOIN archetypes a ON a.format = t.format
-  CROSS JOIN LATERAL unnest(a.signature_cards) AS sig(card)
   JOIN tournament_deck_cards tdc
     ON tdc.tournament_deck_id = td.id AND tdc.board IN ('main', 'commander')
-  JOIN cards c ON c.id = tdc.card_id AND c.name = sig.card
-  GROUP BY td.id, a.id
-  HAVING count(DISTINCT sig.card) >= coalesce(a.min_signatures, array_length(a.signature_cards, 1))
+  WHERE EXISTS (SELECT 1 FROM rule_cards rc WHERE rc.card_id = tdc.card_id)
+),
+matches AS (
+  SELECT
+    dc.tournament_deck_id,
+    rc.archetype_id,
+    count(*) FILTER (WHERE rc.role IN ('sig', 'req')) AS matched,
+    count(*) FILTER (WHERE rc.role = 'req') AS required_matched,
+    count(*) FILTER (WHERE rc.role = 'exc') AS excluded_hits
+  FROM deck_cards dc
+  JOIN rule_cards rc ON rc.format = dc.format AND rc.card_id = dc.card_id
+  GROUP BY dc.tournament_deck_id, rc.archetype_id
 )
-SELECT DISTINCT ON (tournament_deck_id)
-  tournament_deck_id, archetype_id, archetype
-FROM matches
-ORDER BY tournament_deck_id, matched DESC, sig_count DESC, sort_order NULLS LAST;
+SELECT DISTINCT ON (m.tournament_deck_id)
+  m.tournament_deck_id, r.id AS archetype_id, r.name AS archetype
+FROM matches m
+JOIN rules r ON r.id = m.archetype_id
+WHERE m.matched >= coalesce(r.min_signatures, r.card_count)
+  AND m.required_matched = r.req_count
+  AND m.excluded_hits = 0
+ORDER BY m.tournament_deck_id, m.matched DESC, r.card_count DESC, r.sort_order NULLS LAST, r.id;
+
+-- Unique key so the meta_decks join plans as a hash/merge join rather than a
+-- nested loop, and so a CONCURRENTLY refresh is possible from outside a transaction.
+CREATE UNIQUE INDEX tournament_deck_archetypes_deck_idx
+  ON tournament_deck_archetypes (tournament_deck_id);
+
+-- Rule edits from the archetype-rules page reclassify every deck in the format,
+-- so the snapshot is rebuilt in the same transaction as the edit. SECURITY
+-- DEFINER because the matview is owned by postgres, not by the signed-in editor.
+CREATE FUNCTION refresh_tournament_deck_archetypes() RETURNS void
+  LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  REFRESH MATERIALIZED VIEW tournament_deck_archetypes;
+$$;
+
+CREATE FUNCTION archetypes_refresh_matches() RETURNS trigger
+  LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  REFRESH MATERIALIZED VIEW tournament_deck_archetypes;
+  RETURN NULL;
+END;
+$$;
+
+CREATE TRIGGER archetypes_refresh_matches
+  AFTER INSERT OR UPDATE OR DELETE ON archetypes
+  FOR EACH STATEMENT EXECUTE FUNCTION archetypes_refresh_matches();
 
 -- Flattened feed the metagame UI reads: one row per finishing deck with its
 -- resolved archetype and tournament context, so the frontend filters by `format`
