@@ -20,6 +20,7 @@ terms of use (data is licensed CC0 / under Wizards' fan content policy).
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
 import sys
 import time
@@ -68,8 +69,13 @@ def fetch_sets() -> dict[str, dict]:
     return sets
 
 
-def fetch_bulk_cards(bulk_type: str):
-    """Download and parse a Scryfall bulk-data export (one object per card)."""
+def iter_bulk_cards(bulk_type: str):
+    """Stream card objects from a Scryfall bulk-data export.
+
+    Scryfall serves these as gzipped JSONL (one card object per line), so the
+    export is decompressed and parsed a line at a time rather than held in
+    memory as one multi-gigabyte JSON array.
+    """
     print(f"Locating '{bulk_type}' bulk export...", file=sys.stderr)
     catalog = fetch_json(f"{SCRYFALL_API}/bulk-data")
     item = next((d for d in catalog["data"] if d["type"] == bulk_type), None)
@@ -77,14 +83,22 @@ def fetch_bulk_cards(bulk_type: str):
         available = ", ".join(d["type"] for d in catalog["data"])
         sys.exit(f"Unknown bulk type '{bulk_type}'. Available: {available}")
 
-    size_mb = item.get("size", 0) / (1024 * 1024)
+    size_mb = item.get("compressed_size", 0) / (1024 * 1024)
     print(
-        f"Downloading {item['download_uri']} (~{size_mb:.0f} MB)...",
+        f"Downloading {item['jsonl_download_uri']} (~{size_mb:.0f} MB gzipped)...",
         file=sys.stderr,
     )
-    req = urllib.request.Request(item["download_uri"], headers=HEADERS)
+    req = urllib.request.Request(item["jsonl_download_uri"], headers=HEADERS)
     with urllib.request.urlopen(req, timeout=600) as resp:
-        return json.load(resp)
+        with gzip.GzipFile(fileobj=resp) as lines:
+            for line in lines:
+                if line.strip():
+                    yield json.loads(line)
+
+
+def fetch_bulk_cards(bulk_type: str):
+    """The whole bulk export as a list; see iter_bulk_cards to stream it."""
+    return list(iter_bulk_cards(bulk_type))
 
 
 def is_real_card(card: dict, include_digital: bool, include_tokens: bool) -> bool:

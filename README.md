@@ -10,6 +10,7 @@ committed seed.
 - `frontend/` — React 19 + Vite SPA (the actual app). Package manager: **bun**.
 - `supabase/` — local Supabase project: declarative schema, ordered seeds, config.
 - `scripts/` — stdlib-only Python data tooling (no dependencies):
+  - `refresh_cards.py` — refreshes card/set data in a live DB from Scryfall (see below).
   - `generate_seed.py` — fetches Scryfall data into `supabase/seed.sql`.
   - `ingest_tournaments.py` — ingests competitive results (see below).
   - `delete_tournament.py` — removes a tournament everywhere it's stored (see below).
@@ -37,6 +38,11 @@ cd frontend && bun install && bun run dev   # http://localhost:3000
 `supabase db reset` rebuilds everything from `supabase/schemas/*` and `supabase/seeds/*`
 (both ordered in `supabase/config.toml`). Re-run it after editing any schema or seed —
 changes are not applied live.
+
+`supabase/seed.sql` holds the card data and is gitignored, so a fresh clone has to
+generate it before step 2 — `python scripts/generate_seed.py`. Once the database has
+data in it, update the cards in place with `python scripts/refresh_cards.py` rather
+than regenerating and resetting; see [Card data](#card-data-scryfall).
 
 ## Tournament ingestion
 
@@ -201,9 +207,11 @@ URL's path segment; an unrecognized one comes back as `null`.
 | `-o`, `--output PATH` | Write to this file instead of stdout. |
 
 Parsing is shared with the `mtgdecks` ingest source
-(`scripts/tournament_sources/mtgdecks.py`). Each deck is a separate page fetch
-and mtgdecks meters them per IP, so a large event takes a few minutes — 429s are
-logged and backed off rather than failing the run. This script only reads — it
+(`scripts/tournament_sources/mtgdecks.py`). Each deck is a separate page fetch,
+and mtgdecks rate-limits by cadence — crawl faster than roughly one page every
+4.5s and Cloudflare answers with a challenge instead of the page — so fetching
+is deliberately paced and a 39-deck event takes about three minutes. A challenge
+that does land is waited out and widens the pacing for the rest of the run. This script only reads — it
 never touches the database, the cache, or the seed; to store an event, use
 `ingest_tournaments.py --url` above.
 
@@ -293,11 +301,84 @@ absent. Note: Goatbots sits behind Cloudflare, which rejects curl's TLS
 fingerprint but passes Python `urllib` with a descriptive User-Agent — use the
 script rather than curl.
 
-## Seed regeneration
+## Card data (Scryfall)
+
+`cards`, `sets` and `printings` all come from Scryfall's bulk export. There are
+two ways to load them, and they are **not** interchangeable: refresh a database
+that already has data in it, or regenerate the seed for one that doesn't.
+
+### Refreshing a live database
+
+`scripts/refresh_cards.py` updates the three tables in place — the right choice
+for a database you're already using:
+
+```bash
+# Report what would change, then roll back. Worth running first.
+python scripts/refresh_cards.py --dry-run
+
+# Apply to the local DB
+python scripts/refresh_cards.py
+
+# Production — same command, different target
+DATABASE_URL="$SUPABASE_DB_URL" python scripts/refresh_cards.py
+```
+
+It streams Scryfall's gzipped-JSONL bulk export (~75 MB) into staging tables,
+then upserts on the natural keys — `sets.code`, `cards.oracle_id`, and the
+Scryfall printing id — and prunes what Scryfall has dropped, all in **one
+transaction**: an error rolls the whole thing back and leaves the data
+untouched. A full refresh takes well under a minute.
+
+Crucially, existing rows keep their `id`, so decks and tournament decklists go
+on resolving to the right cards; new rows take fresh `SERIAL` ids, leaving the
+sequences correct with no `setval` fixup. Scryfall's own key churn is handled:
+a card that moves to a new `oracle_id` is realigned onto its existing row rather
+than inserted as a duplicate, and when a name moves between oracle ids (a card
+renamed, its previous namesake retired) the displaced row is parked under a
+`[stale #id]` marker so the unique `cards.name` doesn't block the update.
+
+Pruning is deliberately conservative. Printings that vanished upstream are
+deleted, and any deck pinned to one has its `printing_id` cleared. Cards are
+deleted only once nothing references them — a card still used by a deck or a
+tournament decklist is kept and reported, since deleting it would break the
+foreign key. As a backstop, a prune that would remove more than 5% of a table
+aborts the run: at that scale the cause is almost always mismatched flags (say
+`--exclude-tokens` against a token-seeded database) rather than upstream
+deletions. Pass `--force` if you really do mean it — and expect it to be slow,
+as `printings.card_id` and `tournament_deck_cards.card_id` have no index the
+planner can use for the foreign-key checks, so each deleted row costs a
+sequential scan.
+
+| Option | Description |
+| --- | --- |
+| `--dry-run` | Run the whole refresh, report the counts, then roll back. |
+| `--no-prune` | Keep rows that are no longer in Scryfall. |
+| `--force` | Prune even when it would remove a large share of a table. |
+| `--limit N` | Only process the first N card objects (implies `--no-prune`). |
+| `--include-digital` | Include digital-only printings (Alchemy/Arena). |
+| `--exclude-tokens` | Exclude token, emblem and art-series printings. |
+| `--bulk-type NAME` | Scryfall bulk export to use. Default: `default_cards`. |
+| `--db-url URL` | Target database. Default: `$DATABASE_URL` or the local Supabase DB. |
+
+This does not touch `supabase/seed.sql`, so a later `supabase db reset` still
+reloads whatever that file holds — regenerate the seed too if you want the
+reset path to carry the same data.
+
+### Regenerating the seed
 
 `python scripts/generate_seed.py` rewrites `supabase/seed.sql` from Scryfall (a
-large, gitignored file). Flags: `--limit`, `--include-digital`,
-`--exclude-tokens`, `--output`.
+large, gitignored file) for `supabase db reset` to load. Flags: `--limit`,
+`--include-digital`, `--exclude-tokens`, `--bulk-type`, `--output`.
+
+This is the path for a fresh database — a new clone, or a reset you wanted
+anyway. It is **destructive** on an existing one: the generated seed opens with
+`truncate ... cascade`, which also empties `deck_cards` and
+`tournament_deck_cards`, and it assigns `cards.id` by first-appearance order in
+the bulk export, so the ids change from one regeneration to the next. Anything
+holding card ids — your decks, tournaments ingested locally — does not survive
+it. To update card data without that, use `refresh_cards.py` above.
+
+## Archetype rules
 
 The archetype classifier rules are curated in the app (`/:format/archetypes`),
 so the database is their source of truth. `python scripts/dump_archetypes.py`
