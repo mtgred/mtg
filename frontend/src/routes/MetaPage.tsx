@@ -51,19 +51,12 @@ const KINDS: { id: Kind; label: string }[] = [
 ]
 const ALL_KINDS = KINDS.map(k => k.id)
 
-// How deep a "top finish" runs for a given field size — the winner alone for 8–15
-// players, doubling every doubling of the field, capped at top 32. Events under 8
-// players (and those with no reported size) don't qualify at all, and score 0.
-const TOP_CUTS: [number, number][] = [
-  [256, 32],
-  [128, 16],
-  [64, 8],
-  [32, 4],
-  [16, 2],
-  [8, 1],
-]
-const topCut = (players: number | undefined) =>
-  players == null ? 0 : (TOP_CUTS.find(([min]) => players >= min)?.[1] ?? 0)
+// A finish converts when it lands in the top eighth of the field — placement
+// divided by the reported field size. Events with no reported size can't be
+// judged, and ones under 8 players are too small to be meaningful, so their
+// finishes count towards neither side.
+const CONVERSION = 0.125
+const MIN_PLAYERS = 8
 
 type MetaData = {
   format: Format | null
@@ -172,8 +165,6 @@ export default function MetaPage() {
     setFilters({ kinds: full ? null : ALL_KINDS.filter(k => next.has(k)).join(",") || "none" })
   }
 
-  // tournament_id -> kind, so decks (which only carry a tournament id) can be
-  // filtered by the same toggles as the tournament rows.
   const kindById = useMemo(() => {
     const m = new Map<number, Kind>()
     for (const t of data?.tournaments ?? []) m.set(t.id, tournamentKind(t))
@@ -189,18 +180,12 @@ export default function MetaPage() {
     [data, kindById, activeKinds]
   )
 
-  // tournament_id -> player_count, for showing "placement/players" in search and
-  // for sizing each event's top cut.
   const playerCounts = useMemo(() => {
     const m = new Map<number, number>()
     for (const t of data?.tournaments ?? []) if (t.player_count != null) m.set(t.id, t.player_count)
     return m
   }, [data])
 
-  // Archetype share across every finish, plus its share of the top finishes
-  // (`top` / `topTotal`) — a size-weighted signal that ignores the long tail of
-  // small events and mid-field decks. `entries` counts only the finishes in events
-  // that have a top cut at all, so `top` / `entries` is a fair conversion rate.
   const { archetypes, topTotal } = useMemo(() => {
     const map = new Map<string, Archetype>()
     let topTotal = 0
@@ -210,11 +195,13 @@ export default function MetaPage() {
       e.count++
       e.wins += d.wins ?? 0
       e.games += (d.wins ?? 0) + (d.losses ?? 0) + (d.draws ?? 0)
-      const cut = topCut(playerCounts.get(d.tournament_id))
-      if (cut > 0) e.entries++
-      if (d.placement != null && d.placement <= cut) {
-        e.top++
-        topTotal++
+      const players = playerCounts.get(d.tournament_id)
+      if (players != null && players >= MIN_PLAYERS && d.placement != null) {
+        e.entries++
+        if (d.placement / players < CONVERSION) {
+          e.top++
+          topTotal++
+        }
       }
       map.set(name, e)
     }
@@ -406,8 +393,6 @@ function MetaList({
         {sorted.map(a => {
           const share = a.count / total
           const topShare = topTotal > 0 ? a.top / topTotal : null
-          // How often the archetype converts: the share of its finishes in cut-eligible
-          // events that landed in the top cut.
           const relative = a.entries > 0 ? a.top / a.entries : null
           return (
             <tr key={a.name}>
