@@ -50,6 +50,34 @@ const ALL_KINDS = KINDS.map(k => k.id)
 const CONVERSION = 0.125
 const MIN_PLAYERS = 8
 
+// Performance points for one finish: a point per doubling tier the deck clears, so
+// placement/players ≤ 1/8 in an 8+ player event scores 1, ≤ 1/16 in a 16+ event 2,
+// ≤ 1/32 in a 32+ event 3, and so on. Tiers nest, so this is just the deepest one reached.
+function points(placement: number, players: number): number {
+  let n = 0
+  for (let cut = MIN_PLAYERS; players >= cut; cut *= 2) if (placement / players <= 1 / cut) n++
+  return n
+}
+
+// Aggregate performance over a set of finishes. Only finishes with a placement in a
+// MIN_PLAYERS+ event count as `entries` — the denominator for conversion and avg points.
+type Stats = { count: number; wins: number; games: number; top: number; entries: number; points: number }
+const emptyStats = (): Stats => ({ count: 0, wins: 0, games: 0, top: 0, entries: 0, points: 0 })
+// Folds one finish into `e`; returns whether it was a top finish (the caller totals those).
+function accumulate(e: Stats, d: MetaDeck, players: number | undefined): boolean {
+  e.count++
+  e.wins += d.wins ?? 0
+  e.games += (d.wins ?? 0) + (d.losses ?? 0) + (d.draws ?? 0)
+  if (players == null || players < MIN_PLAYERS || d.placement == null) return false
+  e.entries++
+  e.points += points(d.placement, players)
+  if (d.placement / players >= CONVERSION) return false
+  e.top++
+  return true
+}
+const ratio = (n: number, d: number) => (d > 0 ? n / d : null)
+const pct = (v: number | null) => (v == null ? "—" : `${(v * 100).toFixed(1)}%`)
+
 type MetaData = {
   format: Format | null
   tournaments: MetaTournament[]
@@ -177,18 +205,8 @@ export default function MetaPage() {
     let topTotal = 0
     for (const d of decks) {
       const name = d.archetype ?? "Other"
-      const e = map.get(name) ?? { name, count: 0, wins: 0, games: 0, top: 0, entries: 0 }
-      e.count++
-      e.wins += d.wins ?? 0
-      e.games += (d.wins ?? 0) + (d.losses ?? 0) + (d.draws ?? 0)
-      const players = playerCounts.get(d.tournament_id)
-      if (players != null && players >= MIN_PLAYERS && d.placement != null) {
-        e.entries++
-        if (d.placement / players < CONVERSION) {
-          e.top++
-          topTotal++
-        }
-      }
+      const e = map.get(name) ?? { name, ...emptyStats() }
+      if (accumulate(e, d, playerCounts.get(d.tournament_id))) topTotal++
       map.set(name, e)
     }
     const archetypes = [...map.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
@@ -314,13 +332,14 @@ function MetaTab({ archetypes, total, topTotal, formatName, format, kindsQuery }
   )
 }
 
-type Archetype = { name: string; count: number; wins: number; games: number; top: number; entries: number }
+type Archetype = Stats & { name: string }
 const archetypeSort = {
   name: (a: Archetype) => a.name,
   count: (a: Archetype) => a.count,
   top: (a: Archetype) => a.top,
-  relative: (a: Archetype) => (a.entries > 0 ? a.top / a.entries : null),
-  winrate: (a: Archetype) => (a.games > 0 ? a.wins / a.games : null),
+  relative: (a: Archetype) => ratio(a.top, a.entries),
+  points: (a: Archetype) => ratio(a.points, a.entries),
+  winrate: (a: Archetype) => ratio(a.wins, a.games),
 }
 
 function MetaList({ archetypes, total, topTotal, format, kindsQuery }: {
@@ -350,6 +369,9 @@ function MetaList({ archetypes, total, topTotal, format, kindsQuery }: {
           <SortTh col="relative" sort={sort} toggle={toggle} className="standings-record">
             Conversion %
           </SortTh>
+          <SortTh col="points" sort={sort} toggle={toggle} className="standings-record">
+            Avg Perf
+          </SortTh>
           <SortTh col="winrate" sort={sort} toggle={toggle} className="standings-record">
             Win %
           </SortTh>
@@ -357,19 +379,18 @@ function MetaList({ archetypes, total, topTotal, format, kindsQuery }: {
       </thead>
       <tbody>
         {sorted.map(a => {
-          const share = a.count / total
-          const topShare = topTotal > 0 ? a.top / topTotal : null
-          const relative = a.entries > 0 ? a.top / a.entries : null
+          const avg = ratio(a.points, a.entries)
           return (
             <tr key={a.name}>
               <td>
                 <Link to={`/${format}/search?archetype=${encodeURIComponent(a.name)}${kindsQuery}`}>{a.name}</Link>
               </td>
               <td className="standings-record">{a.count}</td>
-              <td className="standings-record">{(share * 100).toFixed(1)}%</td>
-              <td className="standings-record">{topShare == null ? "—" : `${(topShare * 100).toFixed(1)}%`}</td>
-              <td className="standings-record">{relative == null ? "—" : `${(relative * 100).toFixed(1)}%`}</td>
-              <td className="standings-record">{a.games > 0 ? `${((a.wins / a.games) * 100).toFixed(1)}%` : "—"}</td>
+              <td className="standings-record">{pct(ratio(a.count, total))}</td>
+              <td className="standings-record">{pct(ratio(a.top, topTotal))}</td>
+              <td className="standings-record">{pct(ratio(a.top, a.entries))}</td>
+              <td className="standings-record">{avg == null ? "—" : avg.toFixed(2)}</td>
+              <td className="standings-record">{pct(ratio(a.wins, a.games))}</td>
             </tr>
           )
         })}
