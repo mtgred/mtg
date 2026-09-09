@@ -119,6 +119,21 @@ async function loadMeta(format: string): Promise<MetaData> {
   }
 }
 
+// A ";"-separated card list as typed in the search tab, e.g. "ragavan; murktide".
+const terms = (v: string) => v.split(";").map(t => t.trim()).filter(Boolean)
+
+// Ids of the format's decks playing every named card. The card lists are millions
+// of rows and a term as common as Lightning Bolt hits thousands of decks, so the
+// intersection runs in Postgres and only the id set comes back — see
+// meta_deck_search in supabase/schemas/tournaments.sql. Null when nothing is named.
+async function loadCardMatches(format: string, main: string, side: string): Promise<Set<number> | null> {
+  const [p_main, p_side] = [terms(main), terms(side)]
+  if (!p_main.length && !p_side.length) return null
+  const { data, error } = await supabase.rpc("meta_deck_search", { p_format: format, p_main, p_side })
+  if (error) throw error
+  return new Set(data as number[])
+}
+
 type Tab = "meta" | "tournaments" | "search"
 const TABS: { id: Tab; label: string }[] = [
   { id: "meta", label: "Meta" },
@@ -140,13 +155,15 @@ const tabPath = (format: string, id: Tab) => (id === "meta" ? `/${format}` : `/$
 export default function MetaPage() {
   const { format = "", tab: tabParam } = useParams()
   const { data, loading, error } = useAsync(() => loadMeta(format), [format])
-  // The search filter is URL-driven: ?q= for free-text, ?archetype= / ?player= for
-  // exact matches — archetype and player rows deep-link with the latter two (shown
-  // as removable pills) so "Sligh" doesn't also match "RG Sligh".
+  // The search filter is URL-driven: ?player= matches a player name loosely, ?main=
+  // and ?side= are ";"-separated card lists, and ?archetype= is the exact label a
+  // Meta-tab row deep-links with (shown as a removable pill) so "Sligh" doesn't
+  // also match "RG Sligh".
   const [searchParams, setSearchParams] = useSearchParams()
-  const query = searchParams.get("q") ?? ""
   const archetype = searchParams.get("archetype")
-  const player = searchParams.get("player")
+  const player = searchParams.get("player") ?? ""
+  const main = searchParams.get("main") ?? ""
+  const side = searchParams.get("side") ?? ""
   // Merge a partial change into the current filters, preserving any params we don't touch (e.g. the kind filter); empty/null values drop their key
   const setFilters = (next: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams)
@@ -155,8 +172,6 @@ export default function MetaPage() {
       else params.delete(k)
     setSearchParams(params, { replace: true })
   }
-  const setQuery = (v: string) => setFilters({ q: v })
-
   const tab: Tab = tabParam && TAB_IDS.has(tabParam) ? (tabParam as Tab) : "meta"
 
   // Event-kind filter shared across all tabs, URL-driven (?kinds=) so it survives navigating to a deck/tournament and back
@@ -219,17 +234,23 @@ export default function MetaPage() {
     return m
   }, [decks])
 
+  const cards = useAsync(() => loadCardMatches(format, main, side), [format, main, side])
+
   // Blank until something is filtered on — rendering every finish in the format is thousands of rows and janks the tab
   const matches = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q && !archetype && !player) return NO_DECKS
+    const p = player.trim().toLowerCase()
+    const byCard = cards.data
+    const wantsCards = terms(main).length > 0 || terms(side).length > 0
+    if (!p && !archetype && !wantsCards) return NO_DECKS
+    // Card query still in flight (or failed): show nothing rather than the wider
+    // set the other filters alone would match.
+    if (wantsCards && !byCard) return NO_DECKS
     let list = decks
     if (archetype) list = list.filter(d => (d.archetype ?? "Other") === archetype)
-    if (player) list = list.filter(d => d.player === player)
-    if (q)
-      list = list.filter(d => (d.archetype ?? "Other").toLowerCase().includes(q) || d.player.toLowerCase().includes(q))
+    if (p) list = list.filter(d => d.player.toLowerCase().includes(p))
+    if (byCard) list = list.filter(d => byCard.has(d.id))
     return list
-  }, [decks, query, archetype, player])
+  }, [decks, player, main, side, archetype, cards.data])
 
   const formatName = data?.format?.name ?? format
 
@@ -295,12 +316,12 @@ export default function MetaPage() {
       {data && tab === "search" &&
         <SearchTab
           decks={matches}
-          query={query}
-          onQuery={setQuery}
+          filters={{ player, main, side }}
+          onFilters={setFilters}
           archetype={archetype}
-          onClearArchetype={() => setFilters({ archetype: null })}
-          player={player}
-          onClearPlayer={() => setFilters({ player: null })}
+          archetypes={archetypes}
+          searching={cards.loading}
+          searchError={cards.error}
           total={decks.length}
           format={format}
           playerCounts={playerCounts}
@@ -480,60 +501,129 @@ const searchSort = {
   date: (d: MetaDeck) => d.tournament_held_on,
 }
 
-function FilterPill({ label, value, onClear }: { label: string; value: string; onClear: () => void }) {
+type Filters = { player: string; main: string; side: string }
+
+// One filter box, committed on Enter or on blur: filtering thousands of finishes —
+// and, for the card boxes, a round-trip to Postgres — is too costly per keystroke.
+// Emptying the box commits at once so the native ✕ still clears it, and an outside
+// change (a row link setting ?player=) resets the draft.
+function SearchField({ label, placeholder, value, onCommit }: {
+  label: string
+  placeholder: string
+  value: string
+  onCommit: (v: string) => void
+}) {
+  const [draft, setDraft] = useState(value)
+  const [last, setLast] = useState(value)
+  if (value !== last) {
+    setLast(value)
+    setDraft(value)
+  }
+  const commit = (v: string) => v.trim() !== value.trim() && onCommit(v.trim())
   return (
-    <span className="filter-pill">
-      <span className="filter-pill-label">{label}</span>
-      {value}
-      <button type="button" aria-label={`Clear ${label.toLowerCase()} filter`} onClick={onClear}>
-        ×
-      </button>
-    </span>
+    <label className="flex w-full max-w-2xl flex-col gap-1">
+      <span className="field-label">{label}</span>
+      <span className="search-field block">
+        <input
+          className="search"
+          type="search"
+          placeholder={placeholder}
+          value={draft}
+          onChange={e => {
+            setDraft(e.target.value)
+            if (!e.target.value.trim()) commit("")
+          }}
+          onKeyDown={e => e.key === "Enter" && commit(e.currentTarget.value)}
+          onBlur={e => commit(e.target.value)}
+        />
+      </span>
+    </label>
   )
 }
 
-function SearchTab({ decks, query, onQuery, archetype, onClearArchetype, player, onClearPlayer, total, format, playerCounts, kindsQuery }: {
+function SearchTab({ decks, filters, onFilters, archetype, archetypes, searching, searchError, total, format, playerCounts, kindsQuery }: {
   decks: MetaDeck[]
-  query: string
-  onQuery: (v: string) => void
+  filters: Filters
+  onFilters: (next: Record<string, string | null>) => void
   archetype: string | null
-  onClearArchetype: () => void
-  player: string | null
-  onClearPlayer: () => void
+  archetypes: Archetype[]
+  searching: boolean
+  searchError: string | null
   total: number
   format: string
   playerCounts: Map<number, number>
   kindsQuery: string
 }) {
   const { sorted, sort, toggle } = useSort(decks, searchSort, { key: "date", dir: "desc" })
-  // The box holds a draft that only becomes the live `query` on Enter — filtering
-  // every finish in the format on each keystroke janks the tab. Clearing the box
-  // commits immediately so the native ✕ still works, and an outside change to the
-  // query (a deck link dropping ?q=) resets the draft.
-  const [draft, setDraft] = useState(query)
-  const [lastQuery, setLastQuery] = useState(query)
-  if (query !== lastQuery) {
-    setLastQuery(query)
-    setDraft(query)
-  }
+  const filtered = archetype || Object.values(filters).some(v => v.trim())
+  // Alphabetical for scanning; a deep-linked archetype the current kind filter has no decks for still gets an entry so the box shows it
+  const options = useMemo(() => {
+    const list = [...archetypes].sort((a, b) => a.name.localeCompare(b.name))
+    if (archetype && !list.some(a => a.name === archetype)) list.unshift({ name: archetype, ...emptyStats() })
+    return list
+  }, [archetypes, archetype])
+  // Same measures as the Meta tab's table, over whatever the current filters match
+  const stats = useMemo(() => {
+    const s = emptyStats()
+    for (const d of decks) accumulate(s, d, playerCounts.get(d.tournament_id))
+    return s
+  }, [decks, playerCounts])
+  const avgPoints = ratio(stats.points, stats.entries)
   return (
     <>
-      <div className="mb-5 flex flex-wrap items-center gap-3 [&_.search-field]:ml-0 [&_.search-field]:w-96">
-        <FilterInput
-          placeholder="Search by archetype or player…"
-          value={draft}
-          onChange={v => {
-            setDraft(v)
-            if (!v.trim()) onQuery("")
-          }}
-          onEnter={onQuery}
+      <div className="mb-5 flex flex-col items-start gap-3">
+        <label className="flex w-full max-w-2xl flex-col gap-1">
+          <span className="field-label">Archetype</span>
+          <select
+            className="input w-full"
+            value={archetype ?? ""}
+            onChange={e => onFilters({ archetype: e.target.value })}
+          >
+            <option value="">All archetypes</option>
+            {options.map(a => (
+              <option key={a.name} value={a.name}>
+                {a.name} ({a.count})
+              </option>
+            ))}
+          </select>
+        </label>
+        <SearchField
+          label="Player"
+          placeholder="Name…"
+          value={filters.player}
+          onCommit={v => onFilters({ player: v })}
         />
-        {archetype && <FilterPill label="Archetype" value={archetype} onClear={onClearArchetype} />}
-        {player && <FilterPill label="Player" value={player} onClear={onClearPlayer} />}
+        <SearchField
+          label="Main deck cards — separate with ;"
+          placeholder="Ragavan; Murktide Regent"
+          value={filters.main}
+          onCommit={v => onFilters({ main: v })}
+        />
+        <SearchField
+          label="Sideboard cards — separate with ;"
+          placeholder="Surgical Extraction"
+          value={filters.side}
+          onCommit={v => onFilters({ side: v })}
+        />
       </div>
+      {filtered && decks.length > 0 && (
+        <div className="deck-stats">
+          <span>
+            <span className="deck-stat-num">{pct(ratio(stats.top, stats.entries))}</span> conversion
+          </span>
+          <span>
+            <span className="deck-stat-num">{avgPoints == null ? "—" : avgPoints.toFixed(2)}</span> avg points
+          </span>
+          <span>
+            <span className="deck-stat-num">{pct(ratio(stats.wins, stats.games))}</span> win rate
+          </span>
+        </div>
+      )}
       {total === 0 ? <p className="muted">No decks recorded yet.</p> :
-        !query.trim() && !archetype && !player ? <p className="muted">Search by archetype or player to list decks.</p> :
-        decks.length === 0 ? <p className="muted">No decks match{query && ` “${query}”`}.</p> :
+        !filtered ? <p className="muted">Search by player or by the cards a deck plays to list decks.</p> :
+        searchError ? <p className="error">{searchError}</p> :
+        searching ? <p className="muted">Searching…</p> :
+        decks.length === 0 ? <p className="muted">No decks match.</p> :
         <table className="standings">
           <thead>
             <tr>
