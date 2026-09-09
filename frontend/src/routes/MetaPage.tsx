@@ -428,11 +428,7 @@ const tournamentSort = {
   size: (t: TournamentRow) => t.size,
 }
 
-function TournamentsTab({
-  tournaments,
-  counts,
-  format,
-}: {
+function TournamentsTab({ tournaments, counts, format }: {
   tournaments: MetaTournament[]
   counts: Map<number, number>
   format: string
@@ -509,7 +505,7 @@ type Filters = { player: string; main: string; side: string }
 // change (a row link setting ?player=) resets the draft.
 function SearchField({ label, placeholder, value, onCommit }: {
   label: string
-  placeholder: string
+  placeholder?: string
   value: string
   onCommit: (v: string) => void
 }) {
@@ -574,11 +570,7 @@ function SearchTab({ decks, filters, onFilters, archetype, archetypes, searching
       <div className="mb-5 flex flex-col items-start gap-3">
         <label className="flex w-full max-w-2xl flex-col gap-1">
           <span className="field-label">Archetype</span>
-          <select
-            className="input w-full"
-            value={archetype ?? ""}
-            onChange={e => onFilters({ archetype: e.target.value })}
-          >
+          <select className="input w-full" value={archetype ?? ""} onChange={e => onFilters({ archetype: e.target.value })} >
             <option value="">All archetypes</option>
             {options.map(a => (
               <option key={a.name} value={a.name}>
@@ -587,26 +579,11 @@ function SearchTab({ decks, filters, onFilters, archetype, archetypes, searching
             ))}
           </select>
         </label>
-        <SearchField
-          label="Player"
-          placeholder="Name…"
-          value={filters.player}
-          onCommit={v => onFilters({ player: v })}
-        />
-        <SearchField
-          label="Main deck cards — separate with ;"
-          placeholder="Ragavan; Murktide Regent"
-          value={filters.main}
-          onCommit={v => onFilters({ main: v })}
-        />
-        <SearchField
-          label="Sideboard cards — separate with ;"
-          placeholder="Surgical Extraction"
-          value={filters.side}
-          onCommit={v => onFilters({ side: v })}
-        />
+        <SearchField label="Player" value={filters.player} onCommit={v => onFilters({ player: v })} />
+        <SearchField label="Main deck cards — separate with ;" value={filters.main} onCommit={v => onFilters({ main: v })} />
+        <SearchField label="Sideboard cards — separate with ;" value={filters.side} onCommit={v => onFilters({ side: v })} />
       </div>
-      {filtered && decks.length > 0 && (
+      {filtered && decks.length > 0 &&
         <div className="deck-stats">
           <span>
             <span className="deck-stat-num">{pct(ratio(stats.top, stats.entries))}</span> conversion
@@ -617,8 +594,7 @@ function SearchTab({ decks, filters, onFilters, archetype, archetypes, searching
           <span>
             <span className="deck-stat-num">{pct(ratio(stats.wins, stats.games))}</span> win rate
           </span>
-        </div>
-      )}
+        </div>}
       {total === 0 ? <p className="muted">No decks recorded yet.</p> :
         !filtered ? <p className="muted">Search by player or by the cards a deck plays to list decks.</p> :
         searchError ? <p className="error">{searchError}</p> :

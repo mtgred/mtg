@@ -276,6 +276,9 @@ main {
 }
 .search {
   @apply pr-7;
+  &::-webkit-search-cancel-button {
+    @apply -mr-4.5;
+  }
 }
 .filter-pill {
   @apply inline-flex items-center gap-1.5 text-sm py-1 pl-3 pr-1.5 rounded-full bg-paper-sunken border border-border text-ink;
@@ -579,6 +582,13 @@ main {
   &:focus {
     @apply outline-none border-gold shadow-focus;
   }
+}
+/* the native chevron sits flush against the border, so draw our own inset to match the text padding */
+select.input {
+  @apply appearance-none pr-7 bg-no-repeat;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6' fill='none' stroke='%236b6253' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+  background-position: right 0.625rem center;
+  background-size: 0.625rem;
 }
 .btn {
   @apply inline-flex items-center gap-1.5 py-2 px-3.5 rounded-lg bg-blue-600 text-paper-raised font-semibold cursor-pointer border-none transition-colors duration-150;
