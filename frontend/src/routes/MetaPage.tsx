@@ -8,10 +8,9 @@ import { useSort } from "../lib/useSort"
 import { SortTh } from "../components/SortTh"
 import type { Format } from "../lib/types"
 
-// A finishing deck within this format, carrying its tournament for context. The
-// `archetype` here is resolved by the classifier, or by a reported label that names
-// a curated archetype (see supabase/schemas/archetypes.sql) — null otherwise, shown
-// as "Other"; comes flattened from the `meta_decks` view.
+// A finishing deck within this format, carrying its tournament for context
+// The `archetype` here is resolved by the classifier, or by a reported label that names a curated archetype (see supabase/schemas/archetypes.sql)
+// null otherwise, shown as "Other"; comes flattened from the `meta_decks` view.
 type MetaDeck = {
   id: number
   player: string
@@ -35,10 +34,8 @@ type MetaTournament = {
   source: string | null
 }
 
-// Which kind of event a tournament is, for the top-level filter. Anything not
-// ingested from MTGO is treated as a paper event; MTGO events split
-// into leagues (name ends "…League") and everything else competitive (Challenge,
-// Qualifier, Showcase…), which we group as challenges.
+// Which kind of event a tournament is, for the top-level filter. Anything not ingested from MTGO is treated as a paper event
+// MTGO events split into leagues (name ends "…League") and everything else competitive (Challenge, Qualifier, Showcase…), which we group as challenges
 type Kind = "paper" | "challenge" | "league"
 function tournamentKind(t: { source: string | null; name: string }): Kind {
   if (t.source !== "mtgo") return "paper"
@@ -50,11 +47,6 @@ const KINDS: { id: Kind; label: string }[] = [
   { id: "league", label: "MTGO leagues" },
 ]
 const ALL_KINDS = KINDS.map(k => k.id)
-
-// A finish converts when it lands in the top eighth of the field — placement
-// divided by the reported field size. Events with no reported size can't be
-// judged, and ones under 8 players are too small to be meaningful, so their
-// finishes count towards neither side.
 const CONVERSION = 0.125
 const MIN_PLAYERS = 8
 
@@ -74,19 +66,15 @@ async function loadMeta(format: string): Promise<MetaData> {
     .order("held_on", { ascending: false, nullsFirst: false })
   if (tErr) throw tErr
 
-  // Every recorded finish in this format, with its archetype already classified
-  // and tournament context flattened in by the `meta_decks` view. Powers both
-  // the archetype breakdown and the deck search. Paged in full because a busy
-  // format exceeds PostgREST's max_rows (1000) — and placement-less league decks
-  // sort last, so a single capped request would silently drop whole leagues.
+  // Every recorded finish in this format, with its archetype already classified and tournament context flattened in by the `meta_decks` view
+  // Powers both the archetype breakdown and the deck search. Paged in full because a busy format exceeds PostgREST's max_rows (1000)
+  // and placement-less league decks sort last, so a single capped request would silently drop whole leagues.
   const decks: MetaDeck[] = []
   const PAGE = 1000
   for (let from = 0; ; from += PAGE) {
     const { data: page, error: dErr } = await supabase
       .from("meta_decks")
-      .select(
-        "id,player,archetype,archetype_id,placement,wins,losses,draws,tournament_id,tournament_name,tournament_held_on"
-      )
+      .select("id,player,archetype,archetype_id,placement,wins,losses,draws,tournament_id,tournament_name,tournament_held_on")
       .eq("format", format)
       .order("placement", { ascending: true, nullsFirst: false })
       .order("id", { ascending: true })
@@ -131,8 +119,7 @@ export default function MetaPage() {
   const query = searchParams.get("q") ?? ""
   const archetype = searchParams.get("archetype")
   const player = searchParams.get("player")
-  // Merge a partial change into the current filters, preserving any params we
-  // don't touch (e.g. the kind filter); empty/null values drop their key.
+  // Merge a partial change into the current filters, preserving any params we don't touch (e.g. the kind filter); empty/null values drop their key
   const setFilters = (next: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams)
     for (const [k, v] of Object.entries(next))
@@ -144,9 +131,8 @@ export default function MetaPage() {
 
   const tab: Tab = tabParam && TAB_IDS.has(tabParam) ? (tabParam as Tab) : "meta"
 
-  // Event-kind filter shared across all tabs, URL-driven (?kinds=) so it survives
-  // navigating to a deck/tournament and back. Absent param means all kinds; an
-  // empty selection is stored as "none" (a non-kind token that parses to ∅).
+  // Event-kind filter shared across all tabs, URL-driven (?kinds=) so it survives navigating to a deck/tournament and back
+  // Absent param means all kinds; an empty selection is stored as "none" (a non-kind token that parses to ∅)
   const kindsParam = searchParams.get("kinds")
   // Suffix for deep-links into the search tab so they carry the current filter.
   const kindsQuery = kindsParam ? `&kinds=${kindsParam}` : ""
@@ -215,8 +201,7 @@ export default function MetaPage() {
     return m
   }, [decks])
 
-  // Blank until something is filtered on — rendering every finish in the format is
-  // thousands of rows and janks the tab.
+  // Blank until something is filtered on — rendering every finish in the format is thousands of rows and janks the tab
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q && !archetype && !player) return NO_DECKS
@@ -230,8 +215,7 @@ export default function MetaPage() {
 
   const formatName = data?.format?.name ?? format
 
-  // A single-segment path that isn't a known format code lands here; treat it as
-  // not found rather than rendering an empty metagame.
+  // A single-segment path that isn't a known format code lands here; treat it as not found rather than rendering an empty metagame
   if (data && !data.format) {
     return (
       <div className="page">
@@ -250,19 +234,17 @@ export default function MetaPage() {
       </header>
 
       <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2">
-        {KINDS.map(k => (
-          <label key={k.id} className="toggle text-sm">
+        {KINDS.map(k =>
+          <label key={k.id} className="toggle">
             <input type="checkbox" checked={activeKinds.has(k.id)} onChange={() => toggleKind(k.id)} />
             {k.label}
-          </label>
-        ))}
-        <span className="text-sm text-dim">{decks.length} decks</span>
+          </label>)}
+        <span>{decks.length} decks</span>
       </div>
 
       <div className="tabs" role="tablist">
         {TABS.map(t => {
-          const count =
-            t.id === "meta" ? archetypes.length : t.id === "tournaments" ? tournaments.length : matches.length
+          const count = t.id === "meta" ? archetypes.length : t.id === "tournaments" ? tournaments.length : matches.length
           return (
             <Link
               key={t.id}
@@ -291,10 +273,8 @@ export default function MetaPage() {
           kindsQuery={kindsQuery}
         />
       )}
-      {data && tab === "tournaments" && (
-        <TournamentsTab tournaments={tournaments} counts={deckCounts} format={format} />
-      )}
-      {data && tab === "search" && (
+      {data && tab === "tournaments" && <TournamentsTab tournaments={tournaments} counts={deckCounts} format={format} />}
+      {data && tab === "search" &&
         <SearchTab
           decks={matches}
           query={query}
@@ -307,20 +287,12 @@ export default function MetaPage() {
           format={format}
           playerCounts={playerCounts}
           kindsQuery={kindsQuery}
-        />
-      )}
+        />}
     </div>
   )
 }
 
-function MetaTab({
-  archetypes,
-  total,
-  topTotal,
-  formatName,
-  format,
-  kindsQuery,
-}: {
+function MetaTab({ archetypes, total, topTotal, formatName, format, kindsQuery }: {
   archetypes: Archetype[]
   total: number
   topTotal: number
@@ -351,13 +323,7 @@ const archetypeSort = {
   winrate: (a: Archetype) => (a.games > 0 ? a.wins / a.games : null),
 }
 
-function MetaList({
-  archetypes,
-  total,
-  topTotal,
-  format,
-  kindsQuery,
-}: {
+function MetaList({ archetypes, total, topTotal, format, kindsQuery }: {
   archetypes: Archetype[]
   total: number
   topTotal: number
@@ -449,9 +415,7 @@ function TournamentsTab({
       <div className="mb-5 flex flex-wrap items-center gap-3 [&_.search-field]:ml-0 [&_.search-field]:w-96">
         <FilterInput placeholder="Search by tournament or location…" value={query} onChange={setQuery} />
       </div>
-      {rows.length === 0 ? (
-        <p className="muted">No tournaments match{query && ` “${query}”`}.</p>
-      ) : (
+      {rows.length === 0 ? <p className="muted">No tournaments match{query && ` “${query}”`}.</p> :
         <table className="standings">
           <thead>
             <tr>
@@ -481,8 +445,7 @@ function TournamentsTab({
               </tr>
             ))}
           </tbody>
-        </table>
-      )}
+        </table>}
     </>
   )
 }
@@ -508,19 +471,7 @@ function FilterPill({ label, value, onClear }: { label: string; value: string; o
   )
 }
 
-function SearchTab({
-  decks,
-  query,
-  onQuery,
-  archetype,
-  onClearArchetype,
-  player,
-  onClearPlayer,
-  total,
-  format,
-  playerCounts,
-  kindsQuery,
-}: {
+function SearchTab({ decks, query, onQuery, archetype, onClearArchetype, player, onClearPlayer, total, format, playerCounts, kindsQuery }: {
   decks: MetaDeck[]
   query: string
   onQuery: (v: string) => void
@@ -559,13 +510,9 @@ function SearchTab({
         {archetype && <FilterPill label="Archetype" value={archetype} onClear={onClearArchetype} />}
         {player && <FilterPill label="Player" value={player} onClear={onClearPlayer} />}
       </div>
-      {total === 0 ? (
-        <p className="muted">No decks recorded yet.</p>
-      ) : !query.trim() && !archetype && !player ? (
-        <p className="muted">Search by archetype or player to list decks.</p>
-      ) : decks.length === 0 ? (
-        <p className="muted">No decks match{query && ` “${query}”`}.</p>
-      ) : (
+      {total === 0 ? <p className="muted">No decks recorded yet.</p> :
+        !query.trim() && !archetype && !player ? <p className="muted">Search by archetype or player to list decks.</p> :
+        decks.length === 0 ? <p className="muted">No decks match{query && ` “${query}”`}.</p> :
         <table className="standings">
           <thead>
             <tr>
@@ -610,8 +557,7 @@ function SearchTab({
               </tr>
             ))}
           </tbody>
-        </table>
-      )}
+        </table>}
     </>
   )
 }

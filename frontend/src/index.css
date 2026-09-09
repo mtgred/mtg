@@ -302,7 +302,7 @@ main {
     }
   }
   .tab-count {
-    @apply ml-1.5 text-xs font-medium text-text-faint;
+    @apply ml-1.5 text-sm font-medium text-text-faint;
   }
 }
 
