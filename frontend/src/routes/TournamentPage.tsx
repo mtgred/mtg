@@ -142,7 +142,7 @@ export default function TournamentPage() {
                      : <span>{s.archetype ?? "—"}</span>}
                   </td>
                   <td>
-                    <Link to={`/${formatCode || "modern"}/search?q=${encodeURIComponent(s.player)}`}>{s.player}</Link>
+                    <Link to={`/${formatCode || "modern"}/search?player=${encodeURIComponent(s.player)}`}>{s.player}</Link>
                   </td>
                   <td className="standings-record">{rec ?? "—"}</td>
                 </tr>

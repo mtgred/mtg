@@ -123,7 +123,7 @@ export default function TournamentDeckPage() {
       <header className="deck-head">
         <div className="deck-head-top">
           <h2>{deck.archetype ?? `${deck.player}'s deck`}</h2>
-          <Link to={`/${format || "modern"}/search?q=${encodeURIComponent(deck.player)}`}>
+          <Link to={`/${format || "modern"}/search?player=${encodeURIComponent(deck.player)}`}>
             {deck.player}
           </Link>
           {deck.placement != null && (
@@ -166,7 +166,7 @@ export default function TournamentDeckPage() {
                       </Link>}
                   </span>
                   <span className="deck-sibling-player">
-                    <Link to={`/${format || "modern"}/search?q=${encodeURIComponent(s.player)}`}>{s.player}</Link>
+                    <Link to={`/${format || "modern"}/search?player=${encodeURIComponent(s.player)}`}>{s.player}</Link>
                   </span>
                 </li>
               )
