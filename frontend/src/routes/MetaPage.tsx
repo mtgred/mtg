@@ -503,8 +503,9 @@ type Filters = { player: string; main: string; side: string }
 // and, for the card boxes, a round-trip to Postgres — is too costly per keystroke.
 // Emptying the box commits at once so the native ✕ still clears it, and an outside
 // change (a row link setting ?player=) resets the draft.
-function SearchField({ label, placeholder, value, onCommit }: {
+function SearchField({ label, hint, placeholder, value, onCommit }: {
   label: string
+  hint?: string
   placeholder?: string
   value: string
   onCommit: (v: string) => void
@@ -518,7 +519,10 @@ function SearchField({ label, placeholder, value, onCommit }: {
   const commit = (v: string) => v.trim() !== value.trim() && onCommit(v.trim())
   return (
     <label className="flex w-full max-w-2xl flex-col gap-1">
-      <span className="field-label">{label}</span>
+      <div className="flex gap-1">
+        <span className="field-label">{label}</span>
+        {hint && <span className="text-text-faint">- {hint}</span>}
+      </div>
       <span className="search-field block">
         <input
           className="search"
@@ -580,16 +584,19 @@ function SearchTab({ decks, filters, onFilters, archetype, archetypes, searching
           </select>
         </label>
         <SearchField label="Player" value={filters.player} onCommit={v => onFilters({ player: v })} />
-        <SearchField label="Main deck cards — separate with ;" value={filters.main} onCommit={v => onFilters({ main: v })} />
-        <SearchField label="Sideboard cards — separate with ;" value={filters.side} onCommit={v => onFilters({ side: v })} />
+        <SearchField label="Main deck cards" hint="Separated by ;" value={filters.main} onCommit={v => onFilters({ main: v })} />
+        <SearchField label="Sideboard cards" hint="Separated by ;" value={filters.side} onCommit={v => onFilters({ side: v })} />
       </div>
       {filtered && decks.length > 0 &&
         <div className="deck-stats">
           <span>
+            <span className="deck-stat-num">{stats.count}</span> decks
+          </span>
+          <span>
             <span className="deck-stat-num">{pct(ratio(stats.top, stats.entries))}</span> conversion
           </span>
           <span>
-            <span className="deck-stat-num">{avgPoints == null ? "—" : avgPoints.toFixed(2)}</span> avg points
+            <span className="deck-stat-num">{avgPoints == null ? "—" : avgPoints.toFixed(2)}</span> avg perf
           </span>
           <span>
             <span className="deck-stat-num">{pct(ratio(stats.wins, stats.games))}</span> win rate

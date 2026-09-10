@@ -620,7 +620,7 @@ select.input {
   @apply bg-paper-sunken border-border text-text-dim;
 }
 .field-label {
-  @apply text-xs uppercase tracking-wider font-semibold text-text-faint;
+  @apply font-semibold;
 }
 
 /* ---- decks index ---- */
