@@ -126,7 +126,7 @@ class Resolver:
 
     It also carries the set of canonical land names (front face is a land, so a
     modal DFC like "Agadeem's Awakening // Agadeem, the Undercrypt" counts as a
-    spell) so ``tournament_sql`` can drop land-only decks.
+    spell) so ``tournament_sql`` can drop decks with a land-only mainboard.
     """
 
     LANDS = "select name from cards where split_part(type_line, ' // ', 1) like '%Land%'"
@@ -211,9 +211,11 @@ def tournament_sql(t: Tournament, resolver: Resolver, unresolved: Counter, land_
     Each deck is inserted in a CTE that RETURNs its generated id, which the card
     rows then reference — no reliance on placement/player being unique.
 
-    Decks whose every card is a land are dropped entirely: some sources publish
-    a stub list (only the lands, or a lands-only "deck" placeholder) that carries
-    no archetype signal and would skew the meta pages.
+    Decks whose mainboard is entirely lands are dropped: some sources publish a
+    stub list (only the lands, or a lands-only "deck" placeholder) that carries
+    no archetype signal and would skew the meta pages. The sideboard is ignored
+    for that test — a "60 Swamp" main is a stub even when a real sideboard was
+    reported alongside it.
     """
     key = f"source = {lit(t.source)} and external_id = {lit(t.external_id)}"
     # format is guarded by a subselect so an unmapped code inserts NULL rather
@@ -243,7 +245,11 @@ def tournament_sql(t: Tournament, resolver: Resolver, unresolved: Counter, land_
                 unresolved[c.name] += 1
                 continue
             merged[(canon, c.board)] = merged.get((canon, c.board), 0) + c.quantity
-        if merged and all(n in resolver.lands for n, _ in merged):
+        # Stub lists: a mainboard that is nothing but lands (or, when a source
+        # reported no mainboard at all, an all-land sideboard) carries no
+        # archetype signal, so the deck is dropped rather than stored.
+        checked = [n for n, b in merged if b != "side"] or [n for n, _ in merged]
+        if checked and all(n in resolver.lands for n in checked):
             land_only[t.source] += 1
             continue
         # Last guard on the reported label: a source (or a stale cache entry
