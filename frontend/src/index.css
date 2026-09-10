@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "@fontsource-variable/source-sans-3/wght.css";
+@import "@fontsource-variable/spline-sans-mono/wght.css";
 
 @theme {
   --color-paper: #f3eee2;
@@ -32,8 +34,8 @@
   --shadow-lift: 0 18px 40px rgba(74, 58, 30, 0.22);
   --shadow-focus: 0 0 0 3px rgba(176, 138, 46, 0.16);
 
-  --font-sans: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "Spline Sans Mono", ui-monospace, monospace;
+  --font-sans: "Source Sans 3 Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Spline Sans Mono Variable", ui-monospace, monospace;
 
   --animate-rise: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-rise-fast: rise 0.16s cubic-bezier(0.22, 1, 0.36, 1) both;
