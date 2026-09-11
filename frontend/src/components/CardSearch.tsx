@@ -76,14 +76,20 @@ export default function CardSearch() {
     /* eslint-enable react-hooks/set-state-in-effect */
     let alive = true
     const timer = setTimeout(async () => {
-      const { data, error } = await supabase
-        .from("cards")
-        .select("id,name,mana_cost")
-        .ilike("name", `%${escapeLike(q)}%`)
-        .order("edhrec_rank", { ascending: true, nullsFirst: false })
-        .limit(25)
+      const pool = (pattern: string) =>
+        supabase
+          .from("cards")
+          .select("id,name,mana_cost")
+          .ilike("name", pattern)
+          .order("edhrec_rank", { ascending: true, nullsFirst: false })
+          .limit(25)
+      // Separate exact and prefix pools so an unpopular exact match (e.g. "Scour") isn't crowded out of the substring pool by more popular cards.
+      const e = escapeLike(q)
+      const results = await Promise.all([pool(e), pool(`${e}%`), pool(`%${e}%`)])
       if (!alive) return
-      setHits(error ? [] : rank((data ?? []) as Hit[], q))
+      const merged = new Map<Hit["id"], Hit>()
+      for (const { data } of results) for (const h of data ?? []) merged.set(h.id, h)
+      setHits(rank([...merged.values()], q))
       setActive(0)
       setLoading(false)
     }, 180)
