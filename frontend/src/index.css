@@ -100,7 +100,6 @@
   @apply text-red-700 font-medium;
 }
 
-/* ---- chrome ---- */
 .topbar {
   @apply sticky top-0 z-10 flex items-center h-13 px-4 border-b border-border-soft;
   @apply bg-[rgba(247,243,233,0.82)] backdrop-blur-md backdrop-saturate-[1.2];
@@ -593,7 +592,7 @@ select.input {
   background-size: 0.625rem;
 }
 .btn {
-  @apply inline-flex items-center gap-1.5 py-2 px-3.5 rounded-lg bg-blue-600 text-paper-raised font-semibold cursor-pointer border-none transition-colors duration-150;
+  @apply inline-flex items-center gap-1 py-1 px-3 rounded-lg border border-transparent bg-blue-600 text-paper-raised cursor-pointer transition-colors duration-150;
   &:hover {
     @apply no-underline text-paper-raised bg-blue-600;
   }

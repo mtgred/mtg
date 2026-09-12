@@ -4,6 +4,7 @@ import { useAsync } from "../lib/useAsync"
 import { formatDate } from "../lib/format"
 import type { TournamentDeck } from "../lib/types"
 import { DeckViews } from "../components/DeckViews"
+import BookmarkButton from "../components/BookmarkButton"
 import { loadPrintings, type Cheapest, type DeckEntry, type Printings } from "../lib/decklist"
 
 // A sibling decklist in the same tournament, for the standings sidebar.
@@ -121,21 +122,26 @@ export default function TournamentDeckPage() {
       </p>
 
       <header className="deck-head">
-        <div className="deck-head-top">
-          <h2>{deck.archetype ?? `${deck.player}'s deck`}</h2>
-          <Link to={`/${format || "modern"}/search?player=${encodeURIComponent(deck.player)}`}>
-            {deck.player}
-          </Link>
-          {deck.placement != null && (
-            <span className="code-badge">
-              Rank {deck.placement}
-              {deck.tournaments?.player_count != null && (<span>/{deck.tournaments.player_count}</span>)}
-            </span>)}
-          {(deck.wins != null || deck.losses != null || deck.draws != null) && (
-            <span className="deck-head-record">
-              {deck.wins ?? 0}-{deck.losses ?? 0}-{deck.draws ?? 0}
-            </span>)}
-          {deck.tournaments?.held_on && <span>{formatDate(deck.tournaments.held_on)}</span>}
+        <div className="flex justify-between">
+          <div className="deck-head-top">
+            <h2>{deck.archetype ?? `${deck.player}'s deck`}</h2>
+            <Link to={`/${format || "modern"}/search?player=${encodeURIComponent(deck.player)}`}>
+              {deck.player}
+            </Link>
+            {deck.placement != null && (
+              <span className="code-badge">
+                Rank {deck.placement}
+                {deck.tournaments?.player_count != null && (<span>/{deck.tournaments.player_count}</span>)}
+              </span>)}
+            {(deck.wins != null || deck.losses != null || deck.draws != null) && (
+              <span className="deck-head-record">
+                {deck.wins ?? 0}-{deck.losses ?? 0}-{deck.draws ?? 0}
+              </span>)}
+            {deck.tournaments?.held_on && <span>{formatDate(deck.tournaments.held_on)}</span>}
+          </div>
+          <div>
+            <BookmarkButton key={deck.id} deckId={deck.id} />
+          </div>
         </div>
       </header>
 

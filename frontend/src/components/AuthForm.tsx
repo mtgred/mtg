@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { Link, useLocation, useNavigate } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 
 type Mode = "signin" | "signup"
@@ -26,6 +26,8 @@ const copy = {
 export default function AuthForm({ mode }: { mode: Mode }) {
   const t = copy[mode]
   const navigate = useNavigate()
+  // Where to land once authenticated — the page that sent the user here, when one did (see RequireAuth and BookmarkButton)
+  const from = (useLocation().state as { from?: string } | null)?.from ?? "/"
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -41,8 +43,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
       if (mode === "signup") {
         const { data, error } = await supabase.auth.signUp({ email, password })
         if (error) throw error
-        // When email confirmation is required no session is returned, so the
-        // user must verify before they can sign in.
+        // When email confirmation is required no session is returned, so the user must verify before they can sign in
         if (!data.session) {
           setNotice("Check your email to confirm your account, then sign in.")
           return
@@ -51,7 +52,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
       }
-      navigate("/")
+      navigate(from, { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.")
     } finally {
@@ -98,7 +99,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
         </button>
 
         <p className="auth-alt">
-          {t.altPrompt} <Link to={t.altTo}>{t.altLabel}</Link>
+          {t.altPrompt} <Link to={t.altTo} state={{ from }}>{t.altLabel}</Link>
         </p>
       </form>
     </div>

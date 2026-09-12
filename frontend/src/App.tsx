@@ -16,10 +16,14 @@ const App = () => {
         <CardSearch />
         <MetaMenu />
         <CardsMenu />
-        {user && (
+        {user &&
           <NavLink to="/decks" className={({ isActive }) => `navlink${isActive ? " is-active" : ""}`}>
             Decks
-          </NavLink>)}
+          </NavLink>}
+        {user &&
+          <NavLink to="/bookmarks" className={({ isActive }) => `navlink${isActive ? " is-active" : ""}`}>
+            Bookmarks
+          </NavLink>}
         <AccountMenu />
       </nav>
       <main>

@@ -17,6 +17,7 @@ import TournamentDeckPage from "./routes/TournamentDeckPage.tsx"
 import SignInPage from "./routes/SignInPage.tsx"
 import SignUpPage from "./routes/SignUpPage.tsx"
 import DecksPage from "./routes/DecksPage.tsx"
+import BookmarksPage from "./routes/BookmarksPage.tsx"
 import DeckPage from "./routes/DeckPage.tsx"
 import NotFoundPage from "./routes/NotFoundPage.tsx"
 import RequireAuth from "./components/RequireAuth.tsx"
@@ -46,6 +47,14 @@ const router = createBrowserRouter([
         ),
       },
       { path: "decks/:id", element: <DeckPage /> },
+      {
+        path: "bookmarks",
+        element: (
+          <RequireAuth>
+            <BookmarksPage />
+          </RequireAuth>
+        ),
+      },
       // Per-format metagame pages: /:format, /:format/tournaments, /:format/search.
       // Dynamic, so all static routes above take precedence.
       { path: ":format/archetypes", element: <ArchetypesPage /> },

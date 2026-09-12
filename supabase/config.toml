@@ -70,6 +70,7 @@ schema_paths = [
   "./schemas/decks.sql",
   "./schemas/tournaments.sql",
   "./schemas/archetypes.sql",
+  "./schemas/bookmarks.sql",
 ]
 
 [db.seed]
