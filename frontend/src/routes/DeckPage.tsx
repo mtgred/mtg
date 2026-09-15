@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { BsArrowLeft } from "react-icons/bs"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 import { useAsync } from "../lib/useAsync"
@@ -70,7 +71,7 @@ export default function DeckPage() {
       <div className="page">
         <p className="error">{error}</p>
         <p>
-          <Link to="/decks">← Back to decks</Link>
+          <Link to="/decks"><BsArrowLeft className="inline" /> Back to decks</Link>
         </p>
       </div>
     )

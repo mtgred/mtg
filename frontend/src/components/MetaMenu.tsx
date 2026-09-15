@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react"
+import { BsChevronDown } from "react-icons/bs"
 import { NavLink, useLocation } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 import { useAsync } from "../lib/useAsync"
@@ -42,10 +43,8 @@ export default function MetaMenu() {
         aria-expanded={open}
         aria-haspopup="menu"
       >
-        {current ? `${current.name} Meta` : "Meta"}
-        <svg className="cardsmenu-caret" viewBox="0 0 12 12" aria-hidden="true">
-          <path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+        {current ? `${current.name}` : "Meta"}
+        <BsChevronDown className="cardsmenu-caret" aria-hidden="true" />
       </button>
 
       {open && (

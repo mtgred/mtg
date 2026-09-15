@@ -1,3 +1,4 @@
+import { BsArrowLeft } from "react-icons/bs"
 import { Link, useParams } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 import { useAsync } from "../lib/useAsync"
@@ -101,7 +102,7 @@ export default function TournamentDeckPage() {
       <div className="page">
         <p className="error">{error}</p>
         <p>
-          <Link to={`/${format || "modern"}/tournaments/${id}`}>← Back to tournament</Link>
+          <Link to={`/${format || "modern"}/tournaments/${id}`}><BsArrowLeft className="inline" /> Back to tournament</Link>
         </p>
       </div>
     )

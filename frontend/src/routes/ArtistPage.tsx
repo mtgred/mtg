@@ -1,3 +1,4 @@
+import { BsArrowLeft } from "react-icons/bs"
 import { Link, useParams } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 import { useAsync } from "../lib/useAsync"
@@ -53,7 +54,7 @@ export default function ArtistPage() {
         <>
           <p className="error">{error}</p>
           <p>
-            <Link to="/artists">← Back to artists</Link>
+            <Link to="/artists"><BsArrowLeft className="inline" /> Back to artists</Link>
           </p>
         </>
       )}

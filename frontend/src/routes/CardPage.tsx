@@ -1,4 +1,5 @@
 import type { ReactNode } from "react"
+import { BsArrowLeft } from "react-icons/bs"
 import { Link, useParams } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 import { useAsync } from "../lib/useAsync"
@@ -70,7 +71,7 @@ export default function CardPage() {
   const { data, loading, error } = useAsync(() => loadCard(id), [id])
 
   if (loading) return <div className="page"><p className="muted">Loading…</p></div>
-  if (error) return <div className="page"><p className="error">{error}</p><p><Link to="/sets">← Back to sets</Link></p></div>
+  if (error) return <div className="page"><p className="error">{error}</p><p><Link to="/sets"><BsArrowLeft className="inline" /> Back to sets</Link></p></div>
   if (!data) return null
 
   const { printing: p, versions, goatbots } = data

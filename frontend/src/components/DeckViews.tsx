@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { BsXLg } from "react-icons/bs"
 import { Link } from "react-router-dom"
 import { formatPrice, formatTix } from "../lib/format"
 import type { DeckBoard } from "../lib/types"
@@ -218,7 +219,7 @@ function CardRow<E extends DeckEntry>({
               ))}
             </select>
             <button type="button" className="icon-btn" aria-label="Remove" onClick={() => editing.onRemove(entry)}>
-              ×
+              <BsXLg aria-hidden="true" />
             </button>
           </span>
         </>

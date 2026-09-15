@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react"
+import { BsArrowLeft, BsArrowRight } from "react-icons/bs"
 import { Link, useParams, useSearchParams } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 import { useAsync } from "../lib/useAsync"
@@ -260,7 +261,7 @@ export default function MetaPage() {
       <div className="page">
         <p className="error">Unknown format “{format}”.</p>
         <p>
-          <Link to="/formats">← Browse formats</Link>
+          <Link to="/formats"><BsArrowLeft className="inline" /> Browse formats</Link>
         </p>
       </div>
     )
@@ -347,7 +348,7 @@ function MetaTab({ archetypes, total, topTotal, formatName, format, kindsQuery }
         <MetaList archetypes={archetypes} total={total} topTotal={topTotal} format={format} kindsQuery={kindsQuery} />
       )}
       <p className="mt-5 text-sm">
-        <Link to={`/${format}/archetypes`}>Archetype classifier rules →</Link>
+        <Link to={`/${format}/archetypes`}>Archetype classifier rules <BsArrowRight className="inline" /></Link>
       </p>
     </>
   )

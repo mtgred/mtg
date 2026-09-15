@@ -1,3 +1,4 @@
+import { BsArrowLeft } from "react-icons/bs"
 import { Link, useParams } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 import { useAsync } from "../lib/useAsync"
@@ -96,7 +97,7 @@ export default function FormatPage() {
         <>
           <p className="error">{error}</p>
           <p>
-            <Link to="/formats">← Back to formats</Link>
+            <Link to="/formats"><BsArrowLeft className="inline" /> Back to formats</Link>
           </p>
         </>
       )}

@@ -59,18 +59,10 @@ export default function BookmarkButton({ deckId }: { deckId: number }) {
         disabled={busy}
         aria-pressed={on}
       >
-        <svg
-          className="w-3.5 h-4"
-          viewBox="0 0 14 16"
-          fill={on ? "currentColor" : "none"}
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M2 1.8h10v12.4L7 10.6l-5 3.6z" />
-        </svg>
-        {on ? "Bookmarked" : "Bookmark"}
+        <span className="grid">
+          <span className="col-start-1 row-start-1">{on ? "Bookmarked" : "Bookmark"}</span>
+          <span className="col-start-1 row-start-1 invisible" aria-hidden>Bookmarked</span>
+        </span>
       </button>
       {error && <span className="error">{error}</span>}
     </>

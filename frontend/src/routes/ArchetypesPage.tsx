@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { BsArrowLeft } from "react-icons/bs"
 import { Link, useParams } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 import { useAsync } from "../lib/useAsync"
@@ -97,7 +98,7 @@ export default function ArchetypesPage() {
       <div className="page">
         <p className="error">{error ?? `Unknown format “${format}”.`}</p>
         <p>
-          <Link to="/formats">← Browse formats</Link>
+          <Link to="/formats"><BsArrowLeft className="inline" /> Browse formats</Link>
         </p>
       </div>
     )

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react"
+import { BsChevronDown } from "react-icons/bs"
 import { NavLink, useLocation } from "react-router-dom"
 
 // Groups the Sets and Artists links under a single "Cards" topbar dropdown.
@@ -31,9 +32,7 @@ export default function CardsMenu() {
         aria-haspopup="menu"
       >
         Cards
-        <svg className="cardsmenu-caret" viewBox="0 0 12 12" aria-hidden="true">
-          <path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+        <BsChevronDown className="cardsmenu-caret" aria-hidden="true" />
       </button>
 
       {open && (
