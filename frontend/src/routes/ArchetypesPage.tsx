@@ -191,7 +191,7 @@ function RulesEditor({ format, formatName, data }: { format: string; formatName:
   return (
     <div className="page">
       <p className="crumbs">
-        <Link to={`/${format}`}>{formatName} Meta</Link> <span className="sep">/</span> <span>Archetype rules</span>
+        <Link to={`/${format}`}>{formatName}</Link> <span className="sep">/</span> <span>Archetype rules</span>
       </p>
 
       <header className="page-head">

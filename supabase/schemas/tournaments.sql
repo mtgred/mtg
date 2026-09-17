@@ -64,11 +64,12 @@ CREATE INDEX tournament_deck_cards_card_id_idx
 -- Deck search by card list, for the metagame search tab. Each term matches any
 -- card whose name contains it (case-insensitive, so "ragavan" finds "Ragavan,
 -- Nimble Pilferer"); a deck qualifies only when *every* term hits, main terms
--- over main/commander and side terms over the sideboard. Returns the matching
--- `tournament_decks.id`s as one array — the page already holds the format's
--- finishes in memory and only needs the id set to intersect, and an array
--- sidesteps PostgREST's row cap on a term as common as Lightning Bolt.
-CREATE FUNCTION meta_deck_search(p_format TEXT, p_main TEXT[] DEFAULT '{}', p_side TEXT[] DEFAULT '{}')
+-- over main/commander and side terms over the sideboard. With p_any a single
+-- hit suffices instead, which the exclusion boxes use to find decks to drop.
+-- Returns the matching `tournament_decks.id`s as one array — the page already
+-- holds the format's finishes in memory and only needs the id set to intersect,
+-- and an array sidesteps PostgREST's row cap on a term as common as Lightning Bolt.
+CREATE FUNCTION meta_deck_search(p_format TEXT, p_main TEXT[] DEFAULT '{}', p_side TEXT[] DEFAULT '{}', p_any BOOLEAN DEFAULT false)
 RETURNS BIGINT[]
 LANGUAGE sql STABLE
 AS $$
@@ -89,7 +90,7 @@ AS $$
   SELECT coalesce(array_agg(h.tournament_deck_id), '{}')
   FROM (
     SELECT tournament_deck_id FROM hits
-    GROUP BY 1 HAVING count(*) = (SELECT count(*) FROM terms)
+    GROUP BY 1 HAVING p_any OR count(*) = (SELECT count(*) FROM terms)
   ) h
   JOIN tournament_decks td ON td.id = h.tournament_deck_id
   JOIN tournaments t ON t.id = td.tournament_id AND t.format = p_format;

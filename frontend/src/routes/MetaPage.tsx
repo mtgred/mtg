@@ -123,16 +123,25 @@ async function loadMeta(format: string): Promise<MetaData> {
 // A ";"-separated card list as typed in the search tab, e.g. "ragavan; murktide".
 const terms = (v: string) => v.split(";").map(t => t.trim()).filter(Boolean)
 
-// Ids of the format's decks playing every named card. The card lists are millions
+// Ids of the format's decks playing every named card (or any of them, with `any`). The card lists are millions
 // of rows and a term as common as Lightning Bolt hits thousands of decks, so the
 // intersection runs in Postgres and only the id set comes back — see
 // meta_deck_search in supabase/schemas/tournaments.sql. Null when nothing is named.
-async function loadCardMatches(format: string, main: string, side: string): Promise<Set<number> | null> {
+async function cardSearch(format: string, main: string, side: string, any = false): Promise<Set<number> | null> {
   const [p_main, p_side] = [terms(main), terms(side)]
   if (!p_main.length && !p_side.length) return null
-  const { data, error } = await supabase.rpc("meta_deck_search", { p_format: format, p_main, p_side })
+  const { data, error } = await supabase.rpc("meta_deck_search", { p_format: format, p_main, p_side, p_any: any })
   if (error) throw error
   return new Set(data as number[])
+}
+
+// The decks to keep (playing every included card) and to drop (playing any excluded card).
+async function loadCardMatches(format: string, f: Filters) {
+  const [include, exclude] = await Promise.all([
+    cardSearch(format, f.main, f.side),
+    cardSearch(format, f.notMain, f.notSide, true),
+  ])
+  return { include, exclude }
 }
 
 type Tab = "meta" | "tournaments" | "search"
@@ -157,7 +166,8 @@ export default function MetaPage() {
   const { format = "", tab: tabParam } = useParams()
   const { data, loading, error } = useAsync(() => loadMeta(format), [format])
   // The search filter is URL-driven: ?player= matches a player name loosely, ?main=
-  // and ?side= are ";"-separated card lists, and ?archetype= is the exact label a
+  // and ?side= are ";"-separated card lists (?notmain= and ?notside= the cards a deck
+  // must not play), and ?archetype= is the exact label a
   // Meta-tab row deep-links with (shown as a removable pill) so "Sligh" doesn't
   // also match "RG Sligh".
   const [searchParams, setSearchParams] = useSearchParams()
@@ -165,6 +175,8 @@ export default function MetaPage() {
   const player = searchParams.get("player") ?? ""
   const main = searchParams.get("main") ?? ""
   const side = searchParams.get("side") ?? ""
+  const notMain = searchParams.get("notmain") ?? ""
+  const notSide = searchParams.get("notside") ?? ""
   // Merge a partial change into the current filters, preserving any params we don't touch (e.g. the kind filter); empty/null values drop their key
   const setFilters = (next: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams)
@@ -235,23 +247,25 @@ export default function MetaPage() {
     return m
   }, [decks])
 
-  const cards = useAsync(() => loadCardMatches(format, main, side), [format, main, side])
+  const filters = { player, main, side, notMain, notSide }
+  const cards = useAsync(() => loadCardMatches(format, filters), [format, main, side, notMain, notSide])
 
   // Blank until something is filtered on — rendering every finish in the format is thousands of rows and janks the tab
   const matches = useMemo(() => {
     const p = player.trim().toLowerCase()
-    const byCard = cards.data
-    const wantsCards = terms(main).length > 0 || terms(side).length > 0
+    const { include, exclude } = cards.data ?? {}
+    const wantsCards = [main, side, notMain, notSide].some(v => terms(v).length > 0)
     if (!p && !archetype && !wantsCards) return NO_DECKS
     // Card query still in flight (or failed): show nothing rather than the wider
     // set the other filters alone would match.
-    if (wantsCards && !byCard) return NO_DECKS
+    if (wantsCards && !cards.data) return NO_DECKS
     let list = decks
     if (archetype) list = list.filter(d => (d.archetype ?? "Other") === archetype)
     if (p) list = list.filter(d => d.player.toLowerCase().includes(p))
-    if (byCard) list = list.filter(d => byCard.has(d.id))
+    if (include) list = list.filter(d => include.has(d.id))
+    if (exclude) list = list.filter(d => !exclude.has(d.id))
     return list
-  }, [decks, player, main, side, archetype, cards.data])
+  }, [decks, player, main, side, notMain, notSide, archetype, cards.data])
 
   const formatName = data?.format?.name ?? format
 
@@ -317,7 +331,7 @@ export default function MetaPage() {
       {data && tab === "search" &&
         <SearchTab
           decks={matches}
-          filters={{ player, main, side }}
+          filters={filters}
           onFilters={setFilters}
           archetype={archetype}
           archetypes={archetypes}
@@ -498,7 +512,7 @@ const searchSort = {
   date: (d: MetaDeck) => d.tournament_held_on,
 }
 
-type Filters = { player: string; main: string; side: string }
+type Filters = { player: string; main: string; side: string; notMain: string; notSide: string }
 
 // One filter box, committed on Enter or on blur: filtering thousands of finishes —
 // and, for the card boxes, a round-trip to Postgres — is too costly per keystroke.
@@ -585,8 +599,10 @@ function SearchTab({ decks, filters, onFilters, archetype, archetypes, searching
           </select>
         </label>
         <SearchField label="Player" value={filters.player} onCommit={v => onFilters({ player: v })} />
-        <SearchField label="Main deck cards" hint="Separated by ;" value={filters.main} onCommit={v => onFilters({ main: v })} />
-        <SearchField label="Sideboard cards" hint="Separated by ;" value={filters.side} onCommit={v => onFilters({ side: v })} />
+        <SearchField label="Cards in main deck" hint="Separated by ;" value={filters.main} onCommit={v => onFilters({ main: v })} />
+        <SearchField label="Cards in sideboard" hint="Separated by ;" value={filters.side} onCommit={v => onFilters({ side: v })} />
+        <SearchField label="Cards not in main deck" hint="Separated by ;" value={filters.notMain} onCommit={v => onFilters({ notmain: v })} />
+        <SearchField label="Cards not in sideboard" hint="Separated by ;" value={filters.notSide} onCommit={v => onFilters({ notside: v })} />
       </div>
       {filtered && decks.length > 0 &&
         <div className="deck-stats">
