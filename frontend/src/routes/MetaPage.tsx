@@ -64,8 +64,11 @@ function points(placement: number, players: number): number {
 // MIN_PLAYERS+ event count as `entries` — the denominator for conversion and avg points.
 type Stats = { count: number; wins: number; games: number; top: number; entries: number; points: number }
 const emptyStats = (): Stats => ({ count: 0, wins: 0, games: 0, top: 0, entries: 0, points: 0 })
-// Folds one finish into `e`; returns whether it was a top finish (the caller totals those).
+// A 0–0–0 record means the deck never played (a no-show, or an event reported without results).
+const unplayed = (d: MetaDeck) => d.wins === 0 && d.losses === 0 && d.draws === 0
+// Folds one finish into `e`, skipping unplayed decks; returns whether it was a top finish (the caller totals those).
 function accumulate(e: Stats, d: MetaDeck, players: number | undefined): boolean {
+  if (unplayed(d)) return false
   e.count++
   e.wins += d.wins ?? 0
   e.games += (d.wins ?? 0) + (d.losses ?? 0) + (d.draws ?? 0)
@@ -232,6 +235,7 @@ export default function MetaPage() {
     const map = new Map<string, Archetype>()
     let topTotal = 0
     for (const d of decks) {
+      if (unplayed(d)) continue
       const name = d.archetype ?? "Other"
       const e = map.get(name) ?? { name, ...emptyStats() }
       if (accumulate(e, d, playerCounts.get(d.tournament_id))) topTotal++
@@ -320,7 +324,7 @@ export default function MetaPage() {
       {data && tab === "meta" && (
         <MetaTab
           archetypes={archetypes}
-          total={decks.length}
+          total={archetypes.reduce((n, a) => n + a.count, 0)}
           topTotal={topTotal}
           formatName={formatName}
           format={format}
