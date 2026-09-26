@@ -9,10 +9,13 @@ the full list as plain text in ``<textarea id="arena_deck">`` (sectioned by
 
 Cloudflare fronts the site and *challenges browser User-Agents* it can't
 fingerprint, but the honest non-browser UA in base.HEADERS passes — so plain
-stdlib fetching works; don't "upgrade" the UA to look like Chrome. Deck pages
-are additionally metered per IP: sustained fetching trips 429s whose
-Retry-After (~12-minute windows) base._request honors, so wide windows or many
-formats don't fail — they just take correspondingly long.
+stdlib fetching works; don't "upgrade" the UA to look like Chrome. It also
+rate-limits: crawl faster than roughly one page per 4-5 seconds and it answers
+with an interstitial challenge (HTTP 429, ``Cf-Mitigated: challenge``, no
+Retry-After) instead of the page. That is a cadence signal, not a quota —
+cookies and a slower start don't buy a bigger budget — so ``_get`` paces the
+crawl by interval and widens it on every challenge. Wide windows or many formats
+therefore don't fail; they just take correspondingly long.
 
 Events shown with the MTGO platform icon are re-posts of mtgo.com results the
 ``mtgo`` source already ingests natively, so they're skipped here to avoid
@@ -36,6 +39,7 @@ import time
 from datetime import date, datetime, timedelta
 from html import unescape
 
+from . import base
 from .base import Deck, DeckCard, Tournament, http_get, log
 
 name = "mtgdecks"
@@ -62,7 +66,14 @@ FORMATS = {
 
 DEFAULT_DAYS = 7  # window when --since is omitted
 MAX_PAGES = 40  # safety cap per format (each page lists ~20 events)
-DELAY = 1.2  # seconds between requests: the site 429s sustained bursts faster than ~1/s
+# Pacing: minimum seconds between *request starts* (deck pages take ~2s to
+# answer, so an added-sleep delay understates the real cadence). Measured
+# 2026-08-22: a ~3s cadence draws a Cloudflare challenge after 15-20 deck pages,
+# while a ~6s one fetched 49 in a row untouched. Start comfortably under the
+# threshold and widen from there whenever a challenge does land.
+MIN_INTERVAL = 4.5
+MAX_INTERVAL = 20.0
+INTERVAL_GROWTH = 1.5  # multiplier applied per challenge
 
 _ROW_RE = re.compile(r"<tr[^>]*>.*?</tr>", re.S)
 _EVENT_LINK_RE = re.compile(r'href="(/[^"]+-tournament-(\d+))"')
@@ -81,9 +92,28 @@ _URL_RE = re.compile(r"(?:https?://(?:www\.)?mtgdecks\.net)?/([^/]+)/([^/?#]*-to
 BOARDS = {"deck": "main", "sideboard": "side", "commander": "commander", "companion": None}
 
 
+_interval = MIN_INTERVAL  # widened in-run by _get when Cloudflare pushes back
+_last_request = 0.0
+
+
 def _get(url: str, fatal: bool = True) -> str | None:
-    time.sleep(DELAY)
-    return http_get(url, fatal=fatal)
+    """Fetch a page, holding the crawl to one request per ``_interval`` seconds.
+
+    A Cloudflare challenge (base.challenges, retried and waited out there) means
+    the current cadence is too fast for the site, so every one widens the
+    interval for the rest of the run rather than letting the next page trip it
+    again.
+    """
+    global _interval, _last_request
+    seen = base.challenges
+    if (pause := _interval - (time.monotonic() - _last_request)) > 0:
+        time.sleep(pause)
+    _last_request = time.monotonic()
+    html = http_get(url, fatal=fatal)
+    if base.challenges > seen:
+        _interval = min(_interval * INTERVAL_GROWTH, MAX_INTERVAL)
+        log(f"    rate-limited by Cloudflare; slowing to one request per {_interval:.1f}s")
+    return html
 
 
 def _table(html: str, marker: str) -> str:
@@ -115,7 +145,8 @@ def _deck_cards(path: str) -> list[DeckCard]:
     Companion is also listed under Sideboard, so its section is skipped.
     """
     m = _ARENA_RE.search(_get(BASE + path, fatal=False) or "")
-    if not m:
+    if not m:  # unreachable page, or an event row whose list was never posted
+        log(f"\n    ! no decklist at {path}")
         return []
     board, cards = "main", []
     for line in unescape(m.group(1)).splitlines():

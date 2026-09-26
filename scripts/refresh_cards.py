@@ -143,12 +143,21 @@ def insert_batches(table: str, spec, rows):
 
 
 def upsert(table: str, columns, conflict: str, source: str) -> str:
-    """An INSERT ... ON CONFLICT that refreshes every non-key column."""
+    """An INSERT ... ON CONFLICT that refreshes every non-key column.
+
+    Rows whose values are unchanged are skipped: Postgres writes a new row
+    version for every update, so rewriting the whole table on each refresh
+    would leave it half dead space after vacuum.
+    """
     names = [name for name, _ in columns]
-    updates = ", ".join(f"{n} = excluded.{n}" for n in names if n != conflict)
+    cols = [n for n in names if n != conflict]
+    updates = ", ".join(f"{n} = excluded.{n}" for n in cols)
+    current = ", ".join(f"{table}.{n}" for n in cols)
+    incoming = ", ".join(f"excluded.{n}" for n in cols)
     return (
         f"insert into {table} ({', '.join(names)})\n{source}\n"
-        f"on conflict ({conflict}) do update set {updates};\n"
+        f"on conflict ({conflict}) do update set {updates}\n"
+        f" where ({current}) is distinct from ({incoming});\n"
     )
 
 
@@ -283,8 +292,9 @@ def refresh_sql(sets_rows, cards_rows, printing_rows, prune: bool, dry_run: bool
     yield "rollback;\n" if dry_run else "commit;\n"
     if not dry_run:
         # Fresh statistics for the planner: the meta and search pages lean on
-        # these tables and a bulk refresh invalidates the old estimates.
-        yield "analyze sets, cards, printings;\n"
+        # these tables and a bulk refresh invalidates the old estimates. The
+        # vacuum makes the updated rows' old versions reusable right away.
+        yield "vacuum analyze sets, cards, printings;\n"
 
 
 def apply_sql(statements, db_url: str) -> None:

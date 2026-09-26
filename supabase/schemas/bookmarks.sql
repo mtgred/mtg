@@ -5,7 +5,7 @@
 CREATE TABLE tournament_deck_bookmarks (
   id BIGSERIAL PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  tournament_deck_id BIGINT NOT NULL REFERENCES tournament_decks(id) ON DELETE CASCADE,
+  tournament_deck_id INT NOT NULL REFERENCES tournament_decks(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (user_id, tournament_deck_id)
 );

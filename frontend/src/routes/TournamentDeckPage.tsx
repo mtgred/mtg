@@ -49,11 +49,12 @@ async function loadDeck(deckId: string): Promise<DeckData> {
 
   const { data: entries, error: eErr } = await supabase
     .from("tournament_deck_cards")
-    .select("id,quantity,board,cards(id,name,mana_cost,cmc,type_line,color_identity)")
+    .select("quantity,board,cards(id,name,mana_cost,cmc,type_line,color_identity)")
     .eq("tournament_deck_id", deckId)
   if (eErr) throw eErr
 
-  const rows = (entries ?? []) as unknown as DeckEntry[]
+  // Entries have no id of their own; the list index serves as the React key.
+  const rows = ((entries ?? []) as unknown as Omit<DeckEntry, "id">[]).map((e, id) => ({ ...e, id }))
 
   const { data: siblings, error: sErr } = await supabase
     .from("tournament_decks")

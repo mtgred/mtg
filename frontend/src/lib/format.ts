@@ -14,6 +14,12 @@ export function titleCase(value: string | null | undefined): string {
   return value.replace(/[_-]/g, " ").replace(/\b\w/g, c => c.toUpperCase())
 }
 
+// Scryfall image URL for a printing, derived from its id (the few printings
+// without an image get undefined, so callers render their fallback).
+export function cardImage(p: { id: string; has_image: boolean }, size: "small" | "normal" | "large" = "normal") {
+  return p.has_image ? `https://cards.scryfall.io/${size}/front/${p.id[0]}/${p.id[1]}/${p.id}.jpg` : undefined
+}
+
 // Natural sort for collector numbers like "1", "10", "2", "140a", "★123".
 export function compareCollector(a: string | null, b: string | null): number {
   return (a ?? "").localeCompare(b ?? "", undefined, { numeric: true, sensitivity: "base" })

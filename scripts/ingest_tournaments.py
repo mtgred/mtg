@@ -275,7 +275,7 @@ def tournament_sql(t: Tournament, resolver: Resolver, unresolved: Counter, land_
         out.append(
             deck_insert + "\n"
             "insert into tournament_deck_cards (tournament_deck_id, card_id, quantity, board)\n"
-            "select d.id, c.id, v.qty, v.board\n"
+            "select d.id, c.id, v.qty, v.board::tournament_board\n"
             f"from d, (values\n{values}\n) as v(name, qty, board) join cards c on c.name = v.name;"
         )
     return "\n".join(out)

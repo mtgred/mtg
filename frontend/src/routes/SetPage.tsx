@@ -2,9 +2,9 @@ import { Link, useParams } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 import { useAsync } from "../lib/useAsync"
 import type { Card, Printing, Set } from "../lib/types"
-import { compareCollector, formatDate, titleCase } from "../lib/format"
+import { cardImage, compareCollector, formatDate, titleCase } from "../lib/format"
 
-type Row = Pick<Printing, "id" | "collector_number" | "rarity" | "image_uris" | "promo"> & {
+type Row = Pick<Printing, "id" | "collector_number" | "rarity" | "has_image" | "promo"> & {
   cards: Pick<Card, "id" | "name" | "type_line"> | null
 }
 
@@ -24,7 +24,7 @@ async function loadSet(code: string): Promise<SetData> {
 
   const { data, error } = await supabase
     .from("printings")
-    .select("id,collector_number,rarity,image_uris,promo,cards(id,name,type_line)")
+    .select("id,collector_number,rarity,has_image,promo,cards(id,name,type_line)")
     .eq("set_id", set.id)
     .order("collector_number")
   if (error) throw error
@@ -74,8 +74,8 @@ export default function SetPage() {
               <li key={row.id}>
                 <Link to={`/cards/${row.id}`} className="card-tile">
                   <div className="card-img">
-                    {row.image_uris?.normal || row.image_uris?.small ? (
-                      <img src={row.image_uris.normal ?? row.image_uris.small} alt={row.cards?.name ?? ""} loading="lazy" />
+                    {row.has_image ? (
+                      <img src={cardImage(row)} alt={row.cards?.name ?? ""} loading="lazy" />
                     ) : (
                       <div className="card-img-fallback">
                         <span>{row.cards?.name ?? "Card"}</span>

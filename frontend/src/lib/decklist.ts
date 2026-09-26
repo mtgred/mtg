@@ -1,5 +1,6 @@
 import { supabase } from "./supabase"
-import type { Card, DeckBoard, ImageUris, Prices } from "./types"
+import type { Card, DeckBoard, Prices } from "./types"
+import { cardImage } from "./format"
 
 // The oracle-card fields a decklist row needs to render and sort.
 export type ListCard = Pick<Card, "id" | "name" | "mana_cost" | "cmc" | "type_line" | "color_identity">
@@ -61,7 +62,7 @@ export async function loadPrintings(cardIds: number[]): Promise<{ printings: Pri
   const cheapest: Cheapest = {}
   if (cardIds.length === 0) return { printings, cheapest }
   const [{ data: imgs, error: iErr }, { data: cheap, error: cErr }, { data: mtgo, error: mErr }] = await Promise.all([
-    supabase.from("card_default_printings").select("id,card_id,image_uris,prices").in("card_id", cardIds),
+    supabase.from("card_default_printings").select("id,card_id,has_image,prices").in("card_id", cardIds),
     supabase.from("card_cheapest_printings").select("id,card_id,prices").in("card_id", cardIds),
     supabase.from("card_mtgo_prices").select("card_id,tix").in("card_id", cardIds),
   ])
@@ -71,12 +72,12 @@ export async function loadPrintings(cardIds: number[]): Promise<{ printings: Pri
   for (const row of (imgs ?? []) as unknown as {
     id: string
     card_id: number
-    image_uris: ImageUris | null
+    has_image: boolean
     prices: Prices | null
   }[]) {
     printings[row.card_id] = {
       id: row.id,
-      url: row.image_uris?.normal ?? row.image_uris?.large ?? row.image_uris?.small,
+      url: cardImage(row),
       usd: parseNum(row.prices?.usd),
       tix: parseNum(row.prices?.tix),
     }

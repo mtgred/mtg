@@ -41,15 +41,6 @@ export type Artist = {
   printing_count: number
 }
 
-export type ImageUris = {
-  small?: string
-  normal?: string
-  large?: string
-  png?: string
-  art_crop?: string
-  border_crop?: string
-}
-
 export type Prices = {
   usd?: string | null
   usd_foil?: string | null
@@ -158,7 +149,7 @@ export type Printing = {
   finishes: string[] | null
   mtgo_id: number | null
   mtgo_foil_id: number | null
-  image_uris: ImageUris | null
+  has_image: boolean
   prices: Prices | null
   scryfall_uri?: string | null
 }

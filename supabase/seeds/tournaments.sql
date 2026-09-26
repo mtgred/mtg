@@ -31,7 +31,7 @@ insert into tournament_decks (id, tournament_id, player, archetype, placement, w
 
 -- Deck 1 — Boros Energy (Sofia Reyes, 1st)
 insert into tournament_deck_cards (tournament_deck_id, card_id, quantity, board)
-select 1, c.id, v.qty, v.board from (values
+select 1, c.id, v.qty, v.board::tournament_board from (values
   ('Ragavan, Nimble Pilferer', 4, 'main'),
   ('Ocelot Pride', 4, 'main'),
   ('Guide of Souls', 4, 'main'),
@@ -60,7 +60,7 @@ select 1, c.id, v.qty, v.board from (values
 
 -- Deck 2 — Izzet Murktide (Marcus Lee, 2nd)
 insert into tournament_deck_cards (tournament_deck_id, card_id, quantity, board)
-select 2, c.id, v.qty, v.board from (values
+select 2, c.id, v.qty, v.board::tournament_board from (values
   ('Murktide Regent', 4, 'main'),
   ('Dragon''s Rage Channeler', 4, 'main'),
   ('Phlage, Titan of Fire''s Fury', 2, 'main'),
@@ -93,7 +93,7 @@ select 2, c.id, v.qty, v.board from (values
 
 -- Deck 3 — Amulet Titan (Priya Nair, 3rd)
 insert into tournament_deck_cards (tournament_deck_id, card_id, quantity, board)
-select 3, c.id, v.qty, v.board from (values
+select 3, c.id, v.qty, v.board::tournament_board from (values
   ('Primeval Titan', 4, 'main'),
   ('Amulet of Vigor', 4, 'main'),
   ('Arboreal Grazer', 4, 'main'),
@@ -128,7 +128,7 @@ select 3, c.id, v.qty, v.board from (values
 
 -- Deck 4 — Living End (Tomáš Novák, 4th)
 insert into tournament_deck_cards (tournament_deck_id, card_id, quantity, board)
-select 4, c.id, v.qty, v.board from (values
+select 4, c.id, v.qty, v.board::tournament_board from (values
   ('Living End', 4, 'main'),
   ('Grief', 4, 'main'),
   ('Curator of Mysteries', 4, 'main'),
@@ -166,7 +166,7 @@ select 4, c.id, v.qty, v.board from (values
 
 -- Deck 7 — Izzet Phoenix (Elena Costa, 1st)
 insert into tournament_deck_cards (tournament_deck_id, card_id, quantity, board)
-select 7, c.id, v.qty, v.board from (values
+select 7, c.id, v.qty, v.board::tournament_board from (values
   ('Arclight Phoenix', 4, 'main'),
   ('Ledger Shredder', 4, 'main'),
   ('Sprite Dragon', 2, 'main'),
@@ -198,7 +198,7 @@ select 7, c.id, v.qty, v.board from (values
 
 -- Deck 8 — Rakdos Midrange (David Kim, 2nd)
 insert into tournament_deck_cards (tournament_deck_id, card_id, quantity, board)
-select 8, c.id, v.qty, v.board from (values
+select 8, c.id, v.qty, v.board::tournament_board from (values
   ('Bloodtithe Harvester', 4, 'main'),
   ('Fable of the Mirror-Breaker // Reflection of Kiki-Jiki', 4, 'main'),
   ('Sheoldred, the Apocalypse', 3, 'main'),
@@ -231,7 +231,7 @@ select 8, c.id, v.qty, v.board from (values
 
 -- Deck 12 — Esper Pixie (Carlos Mendes, 1st)
 insert into tournament_deck_cards (tournament_deck_id, card_id, quantity, board)
-select 12, c.id, v.qty, v.board from (values
+select 12, c.id, v.qty, v.board::tournament_board from (values
   ('Fear of Isolation', 4, 'main'),
   ('Nowhere to Run', 4, 'main'),
   ('Stormchaser''s Talent', 4, 'main'),
@@ -261,4 +261,3 @@ select 12, c.id, v.qty, v.board from (values
 -- Bump sequences past the explicit ids inserted above.
 select setval('tournaments_id_seq', (select max(id) from tournaments));
 select setval('tournament_decks_id_seq', (select max(id) from tournament_decks));
-select setval('tournament_deck_cards_id_seq', coalesce((select max(id) from tournament_deck_cards), 1));

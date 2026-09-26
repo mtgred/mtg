@@ -167,12 +167,6 @@ def oracle_fields(card: dict) -> dict:
 
 def printing_fields(card: dict) -> dict:
     """Extract print-specific columns for a single Scryfall card object."""
-    image_uris = card.get("image_uris")
-    if image_uris is None:  # double-faced cards carry images per face
-        faces = card.get("card_faces") or []
-        if faces and faces[0].get("image_uris"):
-            image_uris = faces[0]["image_uris"]
-
     flavor_text = card.get("flavor_text")
     if flavor_text is None:
         parts = [f.get("flavor_text") for f in card.get("card_faces") or [] if f.get("flavor_text")]
@@ -202,7 +196,9 @@ def printing_fields(card: dict) -> dict:
         "tcgplayer_id": card.get("tcgplayer_id"),
         "cardmarket_id": card.get("cardmarket_id"),
         "illustration_id": card.get("illustration_id"),
-        "image_uris": image_uris,
+        # Image URLs are derived from the printing id in the frontend; this only
+        # flags the few (art-series) printings Scryfall has no image for.
+        "has_image": card.get("image_status") != "missing",
         "prices": card.get("prices"),
     }
 
@@ -398,7 +394,7 @@ PRINTING_COLUMNS = [
     ("tcgplayer_id", lit_num),
     ("cardmarket_id", lit_num),
     ("illustration_id", lit_str),
-    ("image_uris", lit_jsonb),
+    ("has_image", lit_bool),
     ("prices", lit_jsonb),
 ]
 

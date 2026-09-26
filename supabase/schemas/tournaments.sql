@@ -29,7 +29,7 @@ CREATE INDEX tournaments_held_on_idx ON tournaments (held_on DESC);
 -- is the metagame label (e.g. "Izzet Murktide"); the card-level list lives in
 -- tournament_deck_cards and may be absent when only the archetype was reported.
 CREATE TABLE tournament_decks (
-  id BIGSERIAL PRIMARY KEY,
+  id SERIAL PRIMARY KEY,
   tournament_id BIGINT NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
   player VARCHAR(255) NOT NULL,
   archetype VARCHAR(255),
@@ -41,24 +41,30 @@ CREATE TABLE tournament_decks (
 
 CREATE INDEX tournament_decks_tournament_id_idx ON tournament_decks (tournament_id);
 
+CREATE TYPE tournament_board AS ENUM ('main', 'side', 'commander');
+
 -- Card entries within a finishing deck. References the oracle-level `cards` row
 -- (gameplay identity, stable across printings), mirroring deck_cards. Tournament
--- lists only use main/side/commander boards.
+-- lists only use main/side/commander boards. At millions of rows this is the
+-- largest table, so it is kept narrow: no surrogate id and compact types.
+-- There is deliberately no primary key: a unique (deck, card, board) key can't
+-- use B-tree deduplication, so it cost ~4x the non-unique single-column indexes
+-- below. Uniqueness is upheld by ingest_tournaments.py, which merges entries by
+-- (name, board) before inserting.
 CREATE TABLE tournament_deck_cards (
-  id BIGSERIAL PRIMARY KEY,
-  tournament_deck_id BIGINT NOT NULL REFERENCES tournament_decks(id) ON DELETE CASCADE,
+  tournament_deck_id INT NOT NULL REFERENCES tournament_decks(id) ON DELETE CASCADE,
   card_id INT NOT NULL REFERENCES cards(id),
-  quantity INT NOT NULL DEFAULT 1 CHECK (quantity > 0),
-  board VARCHAR(15) NOT NULL DEFAULT 'main'
-    CHECK (board IN ('main', 'side', 'commander')),
-  UNIQUE (tournament_deck_id, card_id, board)
+  board tournament_board NOT NULL DEFAULT 'main',
+  quantity SMALLINT NOT NULL DEFAULT 1 CHECK (quantity > 0)
 );
 
+-- Per-deck lookups and the ON DELETE CASCADE from tournament_decks.
 CREATE INDEX tournament_deck_cards_deck_id_idx ON tournament_deck_cards (tournament_deck_id);
+
 -- The archetype classifier looks up decks by the handful of card ids its rules
 -- name, over main/commander only (see tournament_deck_archetypes).
 CREATE INDEX tournament_deck_cards_card_id_idx
-  ON tournament_deck_cards (card_id, tournament_deck_id)
+  ON tournament_deck_cards (card_id)
   WHERE board IN ('main', 'commander');
 
 -- Deck search by card list, for the metagame search tab. Each term matches any
@@ -70,7 +76,7 @@ CREATE INDEX tournament_deck_cards_card_id_idx
 -- holds the format's finishes in memory and only needs the id set to intersect,
 -- and an array sidesteps PostgREST's row cap on a term as common as Lightning Bolt.
 CREATE FUNCTION meta_deck_search(p_format TEXT, p_main TEXT[] DEFAULT '{}', p_side TEXT[] DEFAULT '{}', p_any BOOLEAN DEFAULT false)
-RETURNS BIGINT[]
+RETURNS INT[]
 LANGUAGE sql STABLE
 AS $$
   WITH terms AS (
@@ -84,7 +90,7 @@ AS $$
     FROM terms t
     JOIN cards c ON c.name ILIKE '%' || t.term || '%'
     JOIN tournament_deck_cards tdc ON tdc.card_id = c.id
-     AND tdc.board = ANY (CASE WHEN t.board = 'main' THEN ARRAY['main', 'commander'] ELSE ARRAY['side'] END)
+     AND tdc.board = ANY (CASE WHEN t.board = 'main' THEN ARRAY['main', 'commander'] ELSE ARRAY['side'] END::tournament_board[])
     GROUP BY 1, 2, 3
   )
   SELECT coalesce(array_agg(h.tournament_deck_id), '{}')

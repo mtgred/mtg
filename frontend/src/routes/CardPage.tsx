@@ -5,13 +5,13 @@ import { supabase } from "../lib/supabase"
 import { useAsync } from "../lib/useAsync"
 import type { Card, Format, Printing, Set } from "../lib/types"
 import { OracleText, Symbols } from "../components/Symbols"
-import { formatDate, formatPrice, listPrices, titleCase } from "../lib/format"
+import { cardImage, formatDate, formatPrice, listPrices, titleCase } from "../lib/format"
 
 type SetRef = Pick<Set, "code" | "name" | "icon_svg_uri">
 
 type FullPrinting = Printing & { cards: Card | null; sets: SetRef | null }
 
-type Version = Pick<Printing, "id" | "collector_number" | "rarity" | "released_at" | "image_uris" | "prices" | "mtgo_id" | "mtgo_foil_id"> & { sets: SetRef | null }
+type Version = Pick<Printing, "id" | "collector_number" | "rarity" | "released_at" | "has_image" | "prices" | "mtgo_id" | "mtgo_foil_id"> & { sets: SetRef | null }
 
 type CardData = {
   printing: FullPrinting
@@ -36,7 +36,7 @@ async function loadCard(id: string): Promise<CardData> {
   const [versionsRes, formatsRes] = await Promise.all([
     supabase
       .from("printings")
-      .select("id,collector_number,rarity,released_at,image_uris,prices,mtgo_id,mtgo_foil_id,sets(code,name,icon_svg_uri)")
+      .select("id,collector_number,rarity,released_at,has_image,prices,mtgo_id,mtgo_foil_id,sets(code,name,icon_svg_uri)")
       .eq("card_id", full.card_id)
       .order("released_at", { ascending: true, nullsFirst: false }),
     supabase
@@ -79,7 +79,7 @@ export default function CardPage() {
   const gb = (id: number | null | undefined) => (id != null ? goatbots[id]?.toString() : undefined)
   const card = p.cards
   const set = p.sets
-  const img = p.image_uris?.normal ?? p.image_uris?.large ?? p.image_uris?.small
+  const img = cardImage(p)
   const stats = card?.power != null && card?.toughness != null ? `${card.power} / ${card.toughness}` : null
 
   return (
@@ -184,8 +184,8 @@ export default function CardPage() {
             {versions.map(v => (
               <li key={v.id} className={v.id === p.id ? "current" : ""}>
                 <Link to={`/cards/${v.id}`}>
-                  {v.image_uris?.small ? (
-                    <img className="v-thumb" src={v.image_uris.small} alt="" loading="lazy" />
+                  {v.has_image ? (
+                    <img className="v-thumb" src={cardImage(v, "small")} alt="" loading="lazy" />
                   ) : (
                     <span className="v-thumb v-thumb-fallback" />
                   )}

@@ -3,11 +3,11 @@ import { Link, useParams } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 import { useAsync } from "../lib/useAsync"
 import type { Card, Format, Printing } from "../lib/types"
-import { titleCase } from "../lib/format"
+import { cardImage, titleCase } from "../lib/format"
 
 // One printing chosen to represent a card on a banned/restricted list, carrying
 // just enough of the joined card for display and a link.
-type Row = Pick<Printing, "id" | "collector_number" | "rarity" | "image_uris" | "card_id"> & {
+type Row = Pick<Printing, "id" | "collector_number" | "rarity" | "has_image" | "card_id"> & {
   cards: Pick<Card, "id" | "name" | "type_line"> | null
 }
 
@@ -37,7 +37,7 @@ function dedupeByCard(rows: Row[]): Row[] {
 async function loadByStatus(code: string, status: string): Promise<Row[]> {
   const { data, error } = await supabase
     .from("printings")
-    .select("id,collector_number,rarity,image_uris,card_id,cards!inner(id,name,type_line,legalities)")
+    .select("id,collector_number,rarity,has_image,card_id,cards!inner(id,name,type_line,legalities)")
     .eq(`cards.legalities->>${code}`, status)
     .order("released_at", { ascending: true, nullsFirst: false })
   if (error) throw error
@@ -50,7 +50,7 @@ async function loadByNames(names: string[]): Promise<Row[]> {
   if (names.length === 0) return []
   const { data, error } = await supabase
     .from("printings")
-    .select("id,collector_number,rarity,image_uris,card_id,cards!inner(id,name,type_line)")
+    .select("id,collector_number,rarity,has_image,card_id,cards!inner(id,name,type_line)")
     .in("cards.name", names)
     .order("released_at", { ascending: true, nullsFirst: false })
   if (error) throw error
@@ -142,8 +142,8 @@ function CardSection({ title, status, rows }: { title: string; status: string; r
           <li key={row.id}>
             <Link to={`/cards/${row.id}`} className="card-tile">
               <div className="card-img">
-                {row.image_uris?.normal || row.image_uris?.small ? (
-                  <img src={row.image_uris.normal ?? row.image_uris.small} alt={row.cards?.name ?? ""} loading="lazy" />
+                {row.has_image ? (
+                  <img src={cardImage(row)} alt={row.cards?.name ?? ""} loading="lazy" />
                 ) : (
                   <div className="card-img-fallback">
                     <span>{row.cards?.name ?? "Card"}</span>

@@ -25,7 +25,7 @@ CREATE TABLE printings (
   tcgplayer_id INT,
   cardmarket_id INT,
   illustration_id UUID,
-  image_uris JSONB,                           -- size -> URL map
+  has_image BOOLEAN NOT NULL DEFAULT true,    -- false when Scryfall has no image; URLs are built from id
   prices JSONB                                -- usd/usd_foil/eur/tix/...
 );
 
@@ -43,7 +43,7 @@ CREATE VIEW card_default_printings AS
 SELECT DISTINCT ON (p.card_id)
   p.card_id,
   p.id,
-  p.image_uris,
+  p.has_image,
   p.prices
 FROM printings p
 JOIN sets s ON s.id = p.set_id
