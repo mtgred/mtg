@@ -111,12 +111,12 @@
   }
 }
 .navlink {
-  @apply inline-flex items-center gap-1 appearance-none bg-none border-none cursor-pointer py-1 px-2.5 rounded-lg text-text-dim transition-colors duration-150;
+  @apply inline-flex items-center gap-1 appearance-none bg-none border-none cursor-pointer py-1 px-2.5 rounded-lg text-text transition-colors duration-150;
   &:hover {
     @apply no-underline text-ink bg-paper-sunken;
   }
   &.is-active {
-    @apply text-blue-600;
+    @apply font-semibold;
   }
 }
 
@@ -132,12 +132,12 @@
   animation: var(--animate-rise-fast);
 }
 .cardsmenu-item {
-  @apply py-1 px-2 rounded-lg text-text-dim transition-colors duration-150;
+  @apply py-1 px-2 rounded-lg transition-colors duration-150 text-text;
   &:hover {
     @apply no-underline text-ink bg-paper-sunken;
   }
   &.is-active {
-    @apply text-blue-600;
+    @apply font-semibold;
   }
 }
 
@@ -156,12 +156,9 @@
 }
 .account-menu {
   @apply min-w-52 right-0 left-auto;
-}
-.account-email {
-  @apply m-0 py-1.5 px-2.5 text-xs text-text-dim truncate border-b border-border-soft mb-1;
-}
-.account-signout {
-  @apply text-left cursor-pointer appearance-none bg-none border-none w-full;
+  .cardsmenu-item {
+    @apply truncate;
+  }
 }
 
 /* ---- auth pages ---- */
@@ -248,7 +245,7 @@ main {
   @apply min-h-[calc(100vh-60px)];
 }
 .page {
-  @apply max-w-360 mx-auto p-[clamp(0.85rem,4vw,1rem)] animate-rise;
+  @apply max-w-7xl mx-auto p-[clamp(0.85rem,4vw,1rem)] animate-rise;
 }
 
 .not-found {
@@ -891,7 +888,7 @@ select.input {
 
 /* ---- tournament standings ---- */
 .standings {
-  @apply w-full border-collapse;
+  @apply w-full border-collapse text-sm;
   th {
     @apply text-left font-semibold text-text-dim uppercase text-xs tracking-wider py-1.5 px-3 border-b border-border;
   }
@@ -948,7 +945,6 @@ select.input {
   @apply flex gap-3 text-text-faint tabular-nums;
 }
 
-/* ---- symbols ---- */
 .symbol {
   @apply inline-block w-4 h-4 mx-px;
 }
