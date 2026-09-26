@@ -41,7 +41,11 @@ export default function AuthForm({ mode }: { mode: Mode }) {
     setBusy(true)
     try {
       if (mode === "signup") {
-        const { data, error } = await supabase.auth.signUp({ email, password })
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: window.location.origin },
+        })
         if (error) throw error
         // When email confirmation is required no session is returned, so the user must verify before they can sign in
         if (!data.session) {
