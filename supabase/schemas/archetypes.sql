@@ -55,9 +55,10 @@ CREATE POLICY "Signed-in users manage archetypes"
 -- matched, then the most specific definition.
 -- Materialized: classifying every deck costs a pass over the rule cards of all
 -- 2.6M deck-card rows (~0.7s), and the metagame pages read this on every request.
--- It is refreshed whenever the rules change (trigger below) and at the end of a
--- tournament ingest (scripts/ingest_tournaments.py) — nothing else changes the
--- outcome, so the snapshot is only ever as stale as the last write to either.
+-- It is refreshed after every rule save (refresh_tournament_deck_archetypes) and
+-- at the end of a tournament ingest (scripts/ingest_tournaments.py) — nothing
+-- else changes the outcome, so the snapshot is only ever as stale as the last
+-- write to either.
 CREATE MATERIALIZED VIEW tournament_deck_archetypes AS
 WITH rules AS MATERIALIZED (
   -- Sizes count distinct names, so a name repeated in a list can't make a rule
@@ -118,25 +119,19 @@ ORDER BY m.tournament_deck_id, m.matched DESC, r.card_count DESC, r.sort_order N
 CREATE UNIQUE INDEX tournament_deck_archetypes_deck_idx
   ON tournament_deck_archetypes (tournament_deck_id);
 
--- Rule edits from the archetype-rules page reclassify every deck in the format,
--- so the snapshot is rebuilt in the same transaction as the edit. SECURITY
--- DEFINER because the matview is owned by postgres, not by the signed-in editor.
+-- Rule edits from the archetype-rules page reclassify every deck, so the page
+-- calls this after each save. It is not a trigger on `archetypes`: the rebuild
+-- scans every deck card, which on hosted compute outlasts the `authenticated`
+-- role's 8s statement timeout and would roll the edit back with it. PostgREST
+-- applies a function's own statement_timeout to the RPC call. SECURITY DEFINER
+-- because the matview is owned by postgres, not by the signed-in editor.
 CREATE FUNCTION refresh_tournament_deck_archetypes() RETURNS void
-  LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
-  REFRESH MATERIALIZED VIEW tournament_deck_archetypes;
+  LANGUAGE sql SECURITY DEFINER SET search_path = public SET statement_timeout = '5min' AS $$
+  REFRESH MATERIALIZED VIEW CONCURRENTLY tournament_deck_archetypes;
 $$;
 
-CREATE FUNCTION archetypes_refresh_matches() RETURNS trigger
-  LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-BEGIN
-  REFRESH MATERIALIZED VIEW tournament_deck_archetypes;
-  RETURN NULL;
-END;
-$$;
-
-CREATE TRIGGER archetypes_refresh_matches
-  AFTER INSERT OR UPDATE OR DELETE ON archetypes
-  FOR EACH STATEMENT EXECUTE FUNCTION archetypes_refresh_matches();
+REVOKE EXECUTE ON FUNCTION refresh_tournament_deck_archetypes() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION refresh_tournament_deck_archetypes() TO authenticated;
 
 -- Flattened feed the metagame UI reads: one row per finishing deck with its
 -- resolved archetype and tournament context, so the frontend filters by `format`

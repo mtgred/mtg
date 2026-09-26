@@ -98,7 +98,9 @@ export default function ArchetypesPage() {
       <div className="page">
         <p className="error">{error ?? `Unknown format “${format}”.`}</p>
         <p>
-          <Link to="/formats"><BsArrowLeft className="inline" /> Browse formats</Link>
+          <Link to="/formats">
+            <BsArrowLeft className="inline" /> Browse formats
+          </Link>
         </p>
       </div>
     )
@@ -115,8 +117,13 @@ function RulesEditor({ format, formatName, data }: { format: string; formatName:
 
   const patch = (key: number, p: Partial<Rule>) => setRules(rs => rs.map(r => (r.key === key ? { ...r, ...p } : r)))
   const edit = (key: number, p: Partial<Rule>) => patch(key, { ...p, dirty: true })
-  // Any rule change can reclassify every deck in the format, so recount after saves.
-  const refreshStats = () => loadStats(format).then(setStats, () => {})
+  // Any rule change can reclassify every deck, so rebuild the classifier and recount.
+  // The rebuild takes a few seconds; the rule itself is already saved by then.
+  const refreshStats = async () => {
+    const { error } = await supabase.rpc("refresh_tournament_deck_archetypes")
+    if (!error) await loadStats(format).then(setStats, () => {})
+    return error?.message ?? null
+  }
 
   async function saveRule(rule: Rule) {
     const name = rule.name.trim()
@@ -151,11 +158,11 @@ function RulesEditor({ format, formatName, data }: { format: string; formatName:
     const missing = listed.filter(n => !knownNames.has(n))
     patch(rule.key, {
       id: saved.id,
-      saving: false,
       dirty: false,
       warning: missing.length ? `Not found in the card database: ${missing.join(", ")}` : null,
     })
-    refreshStats()
+    const refreshError = await refreshStats()
+    patch(rule.key, { saving: false, error: refreshError && `Saved, but reclassifying decks failed: ${refreshError}` })
   }
 
   async function deleteRule(rule: Rule) {
